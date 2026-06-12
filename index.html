@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>STEEL CHAIN ─鋼鉄連鎖─</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- ===== タイトル ===== -->
+  <div id="screen-title" class="screen">
+    <div class="title-wrap">
+      <div class="title-sub">ROGUELIKE ROBO DECK-BUILDER</div>
+      <h1 class="title-logo">STEEL<span class="accent">CHAIN</span></h1>
+      <div class="title-jp">─ 鋼鉄連鎖 ─</div>
+      <p class="title-copy">パーツを繋げ、コンボを重ねろ。<br>倍率は ×2、×4、×8…… 上限 <span class="accent">×32</span>。</p>
+      <div class="title-btns">
+        <button class="btn big" onclick="startRun()">出 撃</button>
+        <button class="btn ghost" onclick="toggleHelp(true)">遊び方</button>
+      </div>
+      <div id="best-score" class="best-score"></div>
+    </div>
+  </div>
+
+  <!-- ===== マップ ===== -->
+  <div id="screen-map" class="screen">
+    <div class="hud" id="map-hud"></div>
+    <div class="map-wrap">
+      <div id="map-track"></div>
+      <div class="map-main">
+        <h2 id="map-floor-title"></h2>
+        <div id="map-choices"></div>
+      </div>
+      <div id="map-robot" class="map-robot"></div>
+    </div>
+  </div>
+
+  <!-- ===== 戦闘 ===== -->
+  <div id="screen-battle" class="screen">
+    <div class="battle-top">
+      <div id="b-floor" class="hud-chip"></div>
+      <div id="combo-meter"></div>
+      <div id="b-credits" class="hud-chip"></div>
+    </div>
+    <div class="arena">
+      <div class="side player-side">
+        <div class="robot-head-row"><span class="robot-name you">YOUR UNIT</span><span id="p-block" class="block-chip"></span></div>
+        <div id="p-robot"></div>
+      </div>
+      <div class="vs">VS</div>
+      <div class="side enemy-side">
+        <div class="robot-head-row"><span id="e-name" class="robot-name foe"></span><span id="e-block" class="block-chip"></span></div>
+        <div id="e-intent" class="intent"></div>
+        <div id="e-robot"></div>
+      </div>
+    </div>
+    <div class="battle-bottom">
+      <div class="pile-info">
+        <div id="b-deck" class="pile">山札 0</div>
+        <div id="b-discard" class="pile">捨札 0</div>
+      </div>
+      <div id="hand"></div>
+      <div class="turn-ctrl">
+        <div id="b-energy" class="energy"></div>
+        <button id="btn-endturn" class="btn end" onclick="endTurn()">ターン終了<span class="key">E</span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 汎用パネル(報酬/ショップ/休憩/イベント/編成/勝敗) ===== -->
+  <div id="screen-panel" class="screen">
+    <div class="hud" id="panel-hud"></div>
+    <div id="panel-body" class="panel-body"></div>
+  </div>
+
+</div>
+
+<div id="fx-layer"></div>
+<div id="banner-layer"></div>
+
+<!-- ===== ヘルプ ===== -->
+<div id="help-modal" class="modal hidden" onclick="toggleHelp(false)">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <h2>遊び方</h2>
+    <h3>■ ロボット = デッキ</h3>
+    <p>機体は <b>頭部 / 右腕 / 左腕 / 脚部</b> の4パーツ構成。装備したパーツが持つカードが、そのまま戦闘デッキになる。パーツを集めて換装することがデッキ構築だ。</p>
+    <h3>■ 部位破壊</h3>
+    <p>パーツにはそれぞれHPがある。破壊されたパーツのカードはデッキから消滅。<b>頭部を破壊されたら敗北</b>。逆に敵の頭部(コア)を破壊すれば勝利。腕を先に折って無力化するか、頭部を狙って速攻するかは君次第。</p>
+    <h3>■ コンボ(これが本体)</h3>
+    <p>カードには <span class="tag shoot">射撃</span> <span class="tag melee">格闘</span> <span class="tag support">支援</span> の属性がある。<b>同じ属性を連続で使うたびにダメージ・ブロック・修理量が倍々</b>になる。<br>1枚目 ×1 → 2枚目 <b>×2</b> → ×4 → ×8 → <b>×16</b>(特定頭部で×32)。<br>違う属性を出すとコンボはLv1にリセット。無属性カードはコンボに影響しない。コンボはターンをまたいで持続するが、敵のジャミングで消される。</p>
+    <h3>■ 立ち回り</h3>
+    <p>戦闘後はパーツ報酬と自動修復(+4)。休憩・ショップで修理を怠ると、ボス戦の前に腕が消し飛ぶ。</p>
+    <h3>■ 操作</h3>
+    <p>カードクリック(または数字キー1〜8)で使用 / <b>E</b>でターン終了 / 敵パーツをクリックで攻撃対象を変更。</p>
+    <button class="btn" onclick="toggleHelp(false)">閉じる</button>
+  </div>
+</div>
+
+<button id="mute-btn" onclick="toggleMute()">♪</button>
+
+<script src="js/data.js"></script>
+<script src="js/sfx.js"></script>
+<script src="js/fx.js"></script>
+<script src="js/battle.js"></script>
+<script src="js/run.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
