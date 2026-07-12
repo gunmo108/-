@@ -134,7 +134,7 @@ function patientRowData(patient, prs, infection, round) {
   const currentPR = round ? own.find(pr => pr.round_id === round.id) : null;
   const lastPR = own.slice().sort((a, b) => a.round_number - b.round_number).pop();
   const problems = deriveProblems(lastPR && lastPR.vitals, triggers, lastPR && lastPR.problems);
-  return { patient, values, ews, delta, triggers, score, currentPR, own, lastPR, problems };
+  return { patient, values, ews, delta, triggers, score, currentPR, own, lastPR, problems, infection };
 }
 
 // 病床順ソートキー: 拠点順（FACILITIES の並び=KRC→SMM）→ 病床番号 → ラベル
@@ -179,6 +179,7 @@ async function render() {
   try {
     if (view === 'roster' && arg) return await renderRoster(arg);
     if (view === 'patient' && arg) return await renderPatient(arg);
+    if (view === 'handoff' && arg) return await renderHandoff(arg);
     if (view === 'summary' && arg) return await renderSummary(arg);
     if (view === 'dashboard') return await renderDashboard();
     if (view === 'settings') return await renderSettings();
@@ -273,7 +274,7 @@ async function renderRoster(shiftId) {
   const round = readonly ? null : activeRound(rounds);
   const filter = sessionStorage.getItem('ern.rosterFilter') || 'all';
   const sortMode = sessionStorage.getItem('ern.rosterSort') || 'bed';
-  const showDx = sessionStorage.getItem('ern.rosterDx') === '1';
+  const rosterView = sessionStorage.getItem('ern.rosterView') || 'standard'; // standard|dx|infection|memo
 
   const rows = patients.map(p => patientRowData(p, patientRounds, infections.get(p.id), round));
   // 既定は病床順（KRC303→…→SMM104）。トグルで NEWS 順（高い順）。ピン留めは常に先頭。
@@ -306,7 +307,11 @@ async function renderRoster(shiftId) {
           <button type="button" class="seg-btn ${sortMode === 'bed' ? 'on' : ''}" data-value="bed">病床順</button>
           <button type="button" class="seg-btn ${sortMode === 'news' ? 'on' : ''}" data-value="news">NEWS順</button>
         </div>
-        <button class="btn btn-sm" id="toggle-dx">${showDx ? '診断サマリを隠す' : '診断サマリを表示'}</button>
+        <div class="seg seg-wrap" data-seg="rview">
+          ${[['standard', '標準'], ['dx', '診断サマリ'], ['infection', '感染症治療'], ['memo', 'メモ']]
+            .map(([v, l]) => `<button type="button" class="seg-btn ${rosterView === v ? 'on' : ''}" data-value="${v}">${l}</button>`).join('')}
+        </div>
+        <button class="btn btn-sm" id="to-handoff">📋 申し送り一覧</button>
       </div>
       ${readonly ? '' : `
       <div class="round-ctrl">
@@ -328,7 +333,7 @@ async function renderRoster(shiftId) {
     </section>
 
     <section class="roster">
-      ${shown.length ? shown.map(r => rosterRow(r, round, readonly, showDx)).join('')
+      ${shown.length ? shown.map(r => rosterRow(r, round, readonly, rosterView)).join('')
         : `<p class="empty">${patients.length ? '未確認の患者はありません' : '患者を追加してください'}</p>`}
     </section>
 
@@ -341,13 +346,14 @@ async function renderRoster(shiftId) {
   `, 'roster');
 
   // events（並び替え・診断サマリ表示は読み取り専用でも有効）
-  $('#toggle-dx')?.addEventListener('click', () => {
-    sessionStorage.setItem('ern.rosterDx', showDx ? '0' : '1');
-    render();
-  });
+  $('#to-handoff')?.addEventListener('click', () => nav(`#/handoff/${shiftId}`));
   $('#view').addEventListener('segchange', e => {
     if (e.detail.name === 'sort') {
       sessionStorage.setItem('ern.rosterSort', e.detail.value);
+      render();
+    }
+    if (e.detail.name === 'rview') {
+      sessionStorage.setItem('ern.rosterView', e.detail.value);
       render();
     }
     if (e.detail.name === 'filter') {
@@ -388,7 +394,35 @@ function problemChips(problems) {
     `<span class="prob-chip ${SEVERITY[x.sev].cls}">${x.label}</span>`).join('');
 }
 
-function rosterRow(r, round, readonly, showDx) {
+// 感染症治療の1行サマリ（原因菌 / 培養提出日・状況 / 抗菌薬 何を いつから どれくらい）
+function infectionSummaryHTML(infection) {
+  if (!infection) return '<span class="muted">感染情報なし</span>';
+  const orgs = organismNames(infection.organisms) || '—';
+  const cul = `${cultureLabel(infection.culture_status)}${infection.culture_date ? `（提出 ${infection.culture_date}）` : ''}`;
+  const ams = (infection.antimicrobials || []).filter(a => !a.end_date);
+  const amText = ams.length
+    ? ams.map(a => `${esc(a.name)}（${esc(a.start_date)}〜 ${L.dotDays(a)}日目・${a.spectrum === 'broad' ? '広域' : '狭域'}）`).join(' ／ ')
+    : '投与なし';
+  return `<span class="io-k">原因菌</span> ${esc(orgs)}　<span class="io-k">培養</span> ${esc(cul)}<br>
+    <span class="io-k">抗菌薬</span> ${amText}`;
+}
+
+function rosterExtraRow(r, view) {
+  const p = r.patient;
+  if (view === 'dx') {
+    return `<div class="p-extra p-dx" data-detail>${esc(p.dx_summary || '診断サマリ未入力')}</div>`;
+  }
+  if (view === 'infection') {
+    return `<div class="p-extra p-inf" data-detail>${infectionSummaryHTML(r.infection)}</div>`;
+  }
+  if (view === 'memo') {
+    const memo = p.memo || (r.lastPR && r.lastPR.note) || '';
+    return `<div class="p-extra p-memo" data-detail>${memo ? esc(memo) : '<span class="muted">メモなし</span>'}</div>`;
+  }
+  return '';
+}
+
+function rosterRow(r, round, readonly, view) {
   const p = r.patient;
   const t = r.triggers;
   const scoreLabel = (r.lastPR && r.lastPR.vitals && Object.keys(r.lastPR.vitals).length) ? 'NEWS2' : 'スコア';
@@ -424,7 +458,7 @@ function rosterRow(r, round, readonly, showDx) {
     <div class="flags">${flags}</div>
     <div class="row-status">${status}${carryBtn}</div>
     <button class="btn btn-icon" data-detail title="患者詳細">ⓘ</button>
-    ${showDx ? `<div class="p-dx" data-detail>${esc(p.dx_summary || '診断サマリ未入力')}</div>` : ''}
+    ${rosterExtraRow(r, view)}
   </div>`;
 }
 
@@ -783,6 +817,23 @@ function openPatientModal(shift, patient) {
       ${patient ? '' : `<label>初期スコア（NEWS2未入力時の目安）<input type="number" id="pt-ews" inputmode="numeric" min="0" max="20" value="${p.initial_ews ?? 0}"></label>`}
       <label>診断サマリ（Scribble可）<textarea id="pt-dx" class="scribble" rows="2">${esc(p.dx_summary || '')}</textarea></label>
       <label>鎮静 ${segmented('sedation', [{ value: '1', label: 'あり' }, { value: '0', label: 'なし' }], p.sedation ? '1' : '0')}</label>
+      <fieldset><legend>治療サポート（申し送りに表示）</legend>
+        <div class="dev-row">
+          <span class="dev-label">持続血液浄化</span>
+          ${segmented('crrt', [{ value: '1', label: 'CRRT中' }, { value: '0', label: 'なし' }], (p.support && p.support.crrt) ? '1' : '0')}
+        </div>
+        <label>補助循環
+          ${segmented('mcs', [
+            { value: 'none', label: 'なし' }, { value: 'IABP', label: 'IABP' },
+            { value: 'VA-ECMO', label: 'VA-ECMO' }, { value: 'VV-ECMO', label: 'VV-ECMO' },
+            { value: 'Impella', label: 'Impella' },
+          ], (p.support && p.support.mcs) || 'none')}
+        </label>
+        <span class="hint">人工呼吸器の詳細は患者詳細の「人工呼吸器」で設定します。</span>
+      </fieldset>
+      <label>前勤務帯からの懸念点（Scribble可）<textarea id="pt-concerns" class="scribble" rows="2">${esc(p.concerns || '')}</textarea></label>
+      <label>申し送りTOPIC（Scribble可）<textarea id="pt-topics" class="scribble" rows="2">${esc(p.handoff_topics || '')}</textarea></label>
+      <label>メモ（Scribble可）<textarea id="pt-memo" class="scribble" rows="2">${esc(p.memo || '')}</textarea></label>
       ${patient ? '' : `<label>初期の監視役割 ${segmented('race0', [
         { value: 'reactive', label: '待機（現場に任せる）' },
         { value: 'proactive', label: '先回り（eRNが先に見る）' },
@@ -809,6 +860,10 @@ function openPatientModal(shift, patient) {
       weight_kg: numOf('#pt-weight'),
       dx_summary: m.querySelector('#pt-dx').value.trim(),
       sedation: segValue(m, 'sedation') === '1',
+      support: { crrt: segValue(m, 'crrt') === '1', mcs: segValue(m, 'mcs') || 'none' },
+      concerns: m.querySelector('#pt-concerns').value.trim(),
+      handoff_topics: m.querySelector('#pt-topics').value.trim(),
+      memo: m.querySelector('#pt-memo').value.trim(),
       initial_ews: patient ? p.initial_ews : (Number(m.querySelector('#pt-ews').value) || 0),
       race_layer: patient ? p.race_layer : (segValue(m, 'race0') || 'reactive'),
       ventilator: p.ventilator || null,
@@ -908,6 +963,10 @@ async function renderPatient(patientId) {
         </button>
         <span class="muted">${ROLE[patient.race_layer].desc}</span>
       </div>
+      ${treatmentOptions(patient).length ? `<p class="dx"><span class="io-k">治療</span> ${treatmentOptions(patient).map(esc).join(' ／ ')}</p>` : ''}
+      ${patient.concerns ? `<p class="dx"><span class="io-k">前帯懸念</span> ${esc(patient.concerns)}</p>` : ''}
+      ${patient.handoff_topics ? `<p class="dx"><span class="io-k">TOPIC</span> ${esc(patient.handoff_topics)}</p>` : ''}
+      ${patient.memo ? `<p class="dx"><span class="io-k">メモ</span> ${esc(patient.memo)}</p>` : ''}
     </section>
 
     <section class="card">
@@ -1140,6 +1199,7 @@ function emptyInfection(patientId) {
     gram_stain: '',
     organisms: [],
     culture_status: 'none',
+    culture_date: '',
     antimicrobials: [],
     deescalation: 'none',
     crcl: null,
@@ -1188,10 +1248,13 @@ function openInfectionModal(patient, infection) {
         </div>
       </label>
       <label>その他の菌（カンマ区切り・任意）<input type="text" id="inf-org-free" value="${esc((inf.organisms || []).filter(o => !C.findOrganism(o)).join(', '))}"></label>
-      <label>培養状況 ${segmented('culture', [
-        { value: 'none', label: '未提出' }, { value: 'pending', label: '結果待ち' },
-        { value: 'positive', label: '陽性' }, { value: 'negative', label: '陰性' },
-      ], inf.culture_status || 'none')}</label>
+      <div class="form-row">
+        <label>培養状況 ${segmented('culture', [
+          { value: 'none', label: '未提出' }, { value: 'pending', label: '結果待ち' },
+          { value: 'positive', label: '陽性' }, { value: 'negative', label: '陰性' },
+        ], inf.culture_status || 'none')}</label>
+        <label>培養提出日 <input type="date" id="inf-culdate" value="${esc(inf.culture_date || '')}"></label>
+      </div>
       <label>狭域化(de-escalation) ${segmented('deesc', [
         { value: 'none', label: '未' }, { value: 'due', label: '検討可' }, { value: 'done', label: '済' },
       ], inf.deescalation || 'none')}</label>
@@ -1282,6 +1345,7 @@ function openInfectionModal(patient, infection) {
     inf.gram_stain = segValue(m, 'gram') || '';
     inf.organisms = collectOrgs();
     inf.culture_status = segValue(m, 'culture');
+    inf.culture_date = m.querySelector('#inf-culdate').value || '';
     inf.deescalation = segValue(m, 'deesc');
     inf.crcl = m.querySelector('#inf-crcl').value === '' ? null : Number(m.querySelector('#inf-crcl').value);
     inf.crrt = segValue(m, 'crrt') === '1';
@@ -1331,6 +1395,73 @@ function openLabModal(patient, infection) {
     m.close();
     render();
   });
+}
+
+// ---------------------------------------------------------------- 申し送り一覧（PDF）
+
+function treatmentOptions(patient) {
+  const opts = [];
+  const v = patient.ventilator;
+  if (v) {
+    const parts = [v.mode, v.vt ? `VT${v.vt}` : '', v.peep != null ? `PEEP${v.peep}` : '', v.fio2 != null ? `FiO₂${v.fio2}%` : '']
+      .filter(Boolean).join(' ');
+    opts.push(`人工呼吸器${parts ? '（' + parts + '）' : ''}`);
+  }
+  if (patient.support && patient.support.crrt) opts.push('持続血液浄化(CRRT)');
+  if (patient.support && patient.support.mcs && patient.support.mcs !== 'none') opts.push('補助循環(' + patient.support.mcs + ')');
+  return opts;
+}
+
+async function renderHandoff(shiftId) {
+  const bundle = await loadBundle(shiftId);
+  const { shift, patients, patientRounds, rounds, infections } = bundle;
+  if (!shift) return renderHome();
+  const round = activeRound(rounds);
+  const rows = patients.map(p => patientRowData(p, patientRounds, infections.get(p.id), round));
+  rows.sort((a, b) => (b.patient.pinned === true) - (a.patient.pinned === true) || compareBed(a, b));
+
+  const card = r => {
+    const p = r.patient;
+    const opts = treatmentOptions(p);
+    const infHtml = infectionSummaryHTML(r.infection);
+    const hasInf = r.infection && ((r.infection.organisms || []).length || (r.infection.antimicrobials || []).length || r.infection.source);
+    return `
+    <div class="ho-card">
+      <div class="ho-head">
+        <span class="ho-room">${esc(p.facility)} ${esc(p.bed_label)}</span>
+        <span class="ho-demo">${p.age != null ? p.age + '歳' : '年齢-'} / ${p.sex === 'female' ? '女性' : '男性'} / ${esc(p.anon_id)}</span>
+        <span class="ho-score muted">${(r.lastPR && r.lastPR.vitals && Object.keys(r.lastPR.vitals).length) ? 'NEWS2' : 'スコア'} ${r.ews}</span>
+      </div>
+      <div class="ho-body">
+        <div class="ho-row"><span class="ho-k">診断</span><span>${esc(p.dx_summary || '—')}</span></div>
+        <div class="ho-row"><span class="ho-k">治療</span><span>${opts.length ? opts.map(esc).join(' ／ ') : '—'}${p.sedation ? ' ／ 鎮静あり' : ''}</span></div>
+        <div class="ho-row"><span class="ho-k">感染</span><span>${hasInf ? infHtml : '—'}</span></div>
+        <div class="ho-row"><span class="ho-k">前帯懸念</span><span>${esc(p.concerns || '—')}</span></div>
+        <div class="ho-row ho-topic"><span class="ho-k">TOPIC</span><span>${esc(p.handoff_topics || '—')}</span></div>
+        <div class="ho-row"><span class="ho-k">メモ</span><span>${esc(p.memo || '—')}</span></div>
+      </div>
+    </div>`;
+  };
+
+  shell(`
+    <section class="card no-print">
+      <div class="detail-head">
+        <button class="btn" id="ho-back">← 患者リスト</button>
+        <h2>申し送り一覧 <span class="muted">${esc(shift.date)} / ${(shift.facilities || []).join('・')} / ${patients.length}名</span></h2>
+        <div class="detail-actions">
+          <button class="btn btn-primary" id="ho-print">📄 PDFエクスポート（印刷）</button>
+        </div>
+      </div>
+      <p class="hint">「PDFエクスポート」で印刷ダイアログを開き、送信先を「PDFで保存」にすると全患者を1つのPDFにできます（iPad: 共有→プリント→ピンチでPDF）。</p>
+    </section>
+
+    <div class="handoff-sheet">
+      <div class="ho-title only-print">遠隔ICU 申し送り一覧　${esc(shift.date)}　${(shift.facilities || []).join('・')}　${patients.length}名</div>
+      ${rows.length ? rows.map(card).join('') : '<p class="empty">患者がいません</p>'}
+    </div>`, 'roster');
+
+  $('#ho-back').addEventListener('click', () => nav(`#/roster/${shiftId}`));
+  $('#ho-print').addEventListener('click', () => window.print());
 }
 
 // ---------------------------------------------------------------- シフトサマリ

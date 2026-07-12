@@ -192,14 +192,18 @@ button.list-row { cursor: pointer; }
 .roster-head .roster-title { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .round-strip { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0; }
 .roster-tools { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 8px 0; }
-.p-dx {
+.p-extra {
   grid-column: 1 / -1;
   font-size: 12.5px;
   color: var(--text-secondary);
   border-top: 1px dashed var(--grid);
   margin-top: 6px;
   padding-top: 6px;
-  line-height: 1.5;
+  line-height: 1.6;
+}
+.io-k {
+  font-size: 11px; font-weight: 700; color: var(--accent);
+  border: 1px solid var(--border); border-radius: 5px; padding: 1px 5px; margin-right: 4px;
 }
 .round-ctrl { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .progress-wrap { flex: 1; min-width: 180px; }
@@ -457,3 +461,29 @@ fieldset.vfs { padding: 10px 12px; }
 .abx-info { background: color-mix(in srgb, var(--muted) 10%, var(--surface-1)); color: var(--text-secondary); }
 .am-jp { font-size: 11px; margin-left: 6px; }
 .am-note { cursor: help; margin-left: 4px; }
+
+/* ---- 申し送り一覧 / PDF ---- */
+.only-print { display: none; }
+.handoff-sheet { display: flex; flex-direction: column; gap: 10px; }
+.ho-card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; }
+.ho-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; border-bottom: 1px solid var(--grid); padding-bottom: 6px; margin-bottom: 6px; }
+.ho-room { font-size: 16px; font-weight: 800; }
+.ho-demo { font-size: 13px; color: var(--text-secondary); }
+.ho-score { margin-left: auto; font-size: 13px; font-variant-numeric: tabular-nums; }
+.ho-body { display: flex; flex-direction: column; gap: 3px; }
+.ho-row { display: flex; gap: 8px; font-size: 13px; line-height: 1.5; }
+.ho-k { flex-shrink: 0; width: 68px; font-weight: 700; color: var(--accent); }
+.ho-topic { background: color-mix(in srgb, var(--warning) 8%, transparent); border-radius: 4px; }
+.ho-title { font-size: 16px; font-weight: 800; margin-bottom: 10px; }
+
+@media print {
+  .topbar, .fab-bar, .no-print, .toast, .modal-backdrop { display: none !important; }
+  .only-print { display: block; }
+  body, #view { background: #fff; color: #000; }
+  #view { padding: 0; max-width: none; }
+  .handoff-sheet { gap: 6px; }
+  .ho-card { border: 1px solid #999; border-radius: 6px; break-inside: avoid; page-break-inside: avoid; padding: 8px 10px; }
+  .ho-room, .ho-k { color: #000; }
+  .ho-topic { background: #f0f0f0; }
+  .io-k { color: #000; border-color: #999; }
+}
