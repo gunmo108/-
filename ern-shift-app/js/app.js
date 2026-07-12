@@ -137,6 +137,21 @@ function patientRowData(patient, prs, infection, round) {
   return { patient, values, ews, delta, triggers, score, currentPR, own, lastPR, problems };
 }
 
+// 病床順ソートキー: 拠点順（FACILITIES の並び=KRC→SMM）→ 病床番号 → ラベル
+function bedSortKey(patient) {
+  const facIdx = FACILITIES.indexOf(patient.facility);
+  const mnum = String(patient.bed_label || '').match(/\d+/);
+  return {
+    fac: facIdx < 0 ? 99 : facIdx,
+    num: mnum ? Number(mnum[0]) : Infinity,
+    label: patient.bed_label || '',
+  };
+}
+function compareBed(a, b) {
+  const ka = bedSortKey(a.patient), kb = bedSortKey(b.patient);
+  return ka.fac - kb.fac || ka.num - kb.num || ka.label.localeCompare(kb.label);
+}
+
 // ---------------------------------------------------------------- 共通レイアウト
 
 function shell(content, active) {
@@ -257,10 +272,16 @@ async function renderRoster(shiftId) {
   const readonly = shift.status === 'closed';
   const round = readonly ? null : activeRound(rounds);
   const filter = sessionStorage.getItem('ern.rosterFilter') || 'all';
+  const sortMode = sessionStorage.getItem('ern.rosterSort') || 'bed';
+  const showDx = sessionStorage.getItem('ern.rosterDx') === '1';
 
   const rows = patients.map(p => patientRowData(p, patientRounds, infections.get(p.id), round));
+  // 既定は病床順（KRC303→…→SMM104）。トグルで NEWS 順（高い順）。ピン留めは常に先頭。
   rows.sort((a, b) =>
-    (b.patient.pinned === true) - (a.patient.pinned === true) || b.score - a.score);
+    (b.patient.pinned === true) - (a.patient.pinned === true) ||
+    (sortMode === 'news'
+      ? (b.ews - a.ews) || (b.score - a.score) || compareBed(a, b)
+      : compareBed(a, b)));
 
   const confirmed = round ? rows.filter(r => r.currentPR).length : 0;
   const shown = round && filter === 'todo' ? rows.filter(r => !r.currentPR) : rows;
@@ -280,6 +301,13 @@ async function renderRoster(shiftId) {
         ${readonly ? '<span class="chip chip-muted">終了済（読み取り専用）</span>' : ''}
       </div>
       <div class="round-strip">${roundChips || '<span class="muted">ラウンド未開始</span>'}</div>
+      <div class="roster-tools">
+        <div class="seg" data-seg="sort">
+          <button type="button" class="seg-btn ${sortMode === 'bed' ? 'on' : ''}" data-value="bed">病床順</button>
+          <button type="button" class="seg-btn ${sortMode === 'news' ? 'on' : ''}" data-value="news">NEWS順</button>
+        </div>
+        <button class="btn btn-sm" id="toggle-dx">${showDx ? '診断サマリを隠す' : '診断サマリを表示'}</button>
+      </div>
       ${readonly ? '' : `
       <div class="round-ctrl">
         ${round ? `
@@ -300,7 +328,7 @@ async function renderRoster(shiftId) {
     </section>
 
     <section class="roster">
-      ${shown.length ? shown.map(r => rosterRow(r, round, readonly)).join('')
+      ${shown.length ? shown.map(r => rosterRow(r, round, readonly, showDx)).join('')
         : `<p class="empty">${patients.length ? '未確認の患者はありません' : '患者を追加してください'}</p>`}
     </section>
 
@@ -312,19 +340,27 @@ async function renderRoster(shiftId) {
     </div>`}
   `, 'roster');
 
-  // events
+  // events（並び替え・診断サマリ表示は読み取り専用でも有効）
+  $('#toggle-dx')?.addEventListener('click', () => {
+    sessionStorage.setItem('ern.rosterDx', showDx ? '0' : '1');
+    render();
+  });
+  $('#view').addEventListener('segchange', e => {
+    if (e.detail.name === 'sort') {
+      sessionStorage.setItem('ern.rosterSort', e.detail.value);
+      render();
+    }
+    if (e.detail.name === 'filter') {
+      sessionStorage.setItem('ern.rosterFilter', e.detail.value);
+      render();
+    }
+  });
   if (!readonly) {
     $('#add-patient')?.addEventListener('click', () => openPatientModal(shift, null));
     $('#log-intervention')?.addEventListener('click', () => openInterventionModal(bundle, round, null));
     $('#to-summary')?.addEventListener('click', () => nav(`#/summary/${shiftId}`));
     $('#start-round')?.addEventListener('click', () => startRound(shift, rounds));
     $('#end-round')?.addEventListener('click', () => endRound(bundle, round, rows));
-    $('#view').addEventListener('segchange', e => {
-      if (e.detail.name === 'filter') {
-        sessionStorage.setItem('ern.rosterFilter', e.detail.value);
-        render();
-      }
-    });
   }
 
   $$('.p-row').forEach(el => {
@@ -352,7 +388,7 @@ function problemChips(problems) {
     `<span class="prob-chip ${SEVERITY[x.sev].cls}">${x.label}</span>`).join('');
 }
 
-function rosterRow(r, round, readonly) {
+function rosterRow(r, round, readonly, showDx) {
   const p = r.patient;
   const t = r.triggers;
   const scoreLabel = (r.lastPR && r.lastPR.vitals && Object.keys(r.lastPR.vitals).length) ? 'NEWS2' : 'スコア';
@@ -388,6 +424,7 @@ function rosterRow(r, round, readonly) {
     <div class="flags">${flags}</div>
     <div class="row-status">${status}${carryBtn}</div>
     <button class="btn btn-icon" data-detail title="患者詳細">ⓘ</button>
+    ${showDx ? `<div class="p-dx" data-detail>${esc(p.dx_summary || '診断サマリ未入力')}</div>` : ''}
   </div>`;
 }
 
