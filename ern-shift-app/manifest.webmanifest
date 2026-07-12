@@ -1,0 +1,15 @@
+{
+  "name": "eRN Rounds — 遠隔ICU 勤務管理",
+  "short_name": "eRN Rounds",
+  "description": "遠隔ICU eRN のシフト内ラウンド管理（オフラインファースト・端末内完結）",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f9f9f7",
+  "theme_color": "#1c5cab",
+  "lang": "ja",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
