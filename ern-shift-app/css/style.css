@@ -200,7 +200,7 @@ button.list-row { cursor: pointer; }
 .roster { display: flex; flex-direction: column; gap: 6px; }
 .p-row {
   display: grid;
-  grid-template-columns: 52px minmax(80px, 130px) 64px minmax(150px, 1fr) minmax(70px, auto) minmax(90px, auto) 48px;
+  grid-template-columns: 52px minmax(80px, 120px) 60px minmax(140px, 1fr) minmax(80px, auto) minmax(60px, auto) minmax(90px, auto) 48px;
   gap: 8px;
   align-items: center;
   padding: 8px 10px;
@@ -252,9 +252,21 @@ button.list-row { cursor: pointer; }
     grid-auto-rows: auto;
   }
   .trend { grid-column: 1 / 3; }
-  .flags { grid-column: 3 / 5; justify-content: flex-end; }
-  .row-status { grid-column: 1 / 5; justify-content: flex-end; }
+  .problems { grid-column: 3 / 5; justify-content: flex-end; }
+  .flags { grid-column: 1 / 3; }
+  .row-status { grid-column: 3 / 5; justify-content: flex-end; }
 }
+
+/* ---- 問題点チップ（roster） ---- */
+.problems { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.prob-chip {
+  font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 6px;
+  border: 1px solid transparent; white-space: nowrap;
+}
+.prob-none { font-size: 12px; }
+.sev-stable { background: color-mix(in srgb, var(--good) 12%, var(--surface-1)); color: var(--good); border-color: var(--good); }
+.sev-caution { background: color-mix(in srgb, var(--warning) 16%, var(--surface-1)); color: var(--warning); border-color: var(--warning); }
+.sev-alert { background: color-mix(in srgb, var(--critical) 14%, var(--surface-1)); color: var(--critical); border-color: var(--critical); }
 
 /* ---- 患者詳細 ---- */
 .detail-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
@@ -297,16 +309,24 @@ legend { color: var(--text-secondary); font-size: 13px; padding: 0 6px; }
 .form-row label { flex: 1; min-width: 120px; }
 input[type="text"], input[type="number"], input[type="date"], input[type="time"], select, textarea {
   font: inherit;
+  font-size: 16px;          /* iOS の自動ズーム抑止＋視認性 */
   width: 100%;
-  min-height: 44px;
+  min-height: 48px;
   margin-top: 4px;
-  padding: 8px 10px;
+  padding: 10px 12px;
   border: 1px solid var(--baseline);
   border-radius: 8px;
   background: var(--surface-1);
   color: var(--text-primary);
 }
-textarea { resize: vertical; }
+textarea { resize: vertical; line-height: 1.5; }
+/* Scribble（Apple Pencil 手書き）入力欄: 大きめ・文字も大きく */
+textarea.scribble {
+  min-height: 120px;
+  font-size: 18px;
+  line-height: 1.6;
+  padding: 14px;
+}
 .dev-row input[type="date"], .am-new input { width: auto; flex: 1; min-width: 120px; }
 .stepper { display: flex; gap: 8px; align-items: center; margin-top: 4px; }
 .stepper input { width: 80px; text-align: center; font-size: 18px; font-weight: 700; }
@@ -374,3 +394,56 @@ textarea { resize: vertical; }
   pointer-events: none;
 }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ---- 共通: 免責・横スクロール表 ---- */
+.disclaimer {
+  font-size: 11px; color: var(--muted); margin: 10px 0 4px;
+  padding: 6px 10px; border-left: 3px solid var(--baseline); background: color-mix(in srgb, var(--muted) 8%, transparent);
+}
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* ---- バイタル入力 → NEWS2 ---- */
+fieldset.vfs { padding: 10px 12px; }
+.vitals-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
+.vital { display: flex; flex-direction: column; gap: 2px; }
+.vital-wide { grid-column: 1 / -1; }
+.vital-label { font-size: 13px; font-weight: 600; }
+.vunit { font-weight: 400; color: var(--muted); font-size: 11px; margin-left: 4px; }
+.vital-in { text-align: center; font-size: 18px !important; font-weight: 700; }
+.vital-sub { font-size: 11px; }
+.mini-toggle { font: inherit; font-size: 11px; padding: 2px 6px; border-radius: 6px; border: 1px solid var(--baseline); background: var(--surface-1); color: var(--accent); cursor: pointer; }
+
+.news2-panel { margin-top: 12px; }
+.news2-empty { padding: 8px; font-size: 13px; }
+.news2-head { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 8px; flex-wrap: wrap; }
+.news2-total { font-size: 20px; font-weight: 800; }
+.news2-total b { font-size: 24px; }
+.news2-band { font-size: 13px; font-weight: 600; }
+.band-high { background: color-mix(in srgb, var(--critical) 18%, var(--surface-1)); color: var(--critical); }
+.band-medium { background: color-mix(in srgb, var(--serious) 18%, var(--surface-1)); color: var(--serious); }
+.band-low { background: color-mix(in srgb, var(--warning) 16%, var(--surface-1)); color: var(--warning); }
+.band-zero { background: color-mix(in srgb, var(--good) 12%, var(--surface-1)); color: var(--good); }
+.sc-chips { display: flex; flex-wrap: wrap; gap: 4px; margin: 8px 0; }
+.sc-chip { font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 6px; font-variant-numeric: tabular-nums; }
+.sc0 { background: color-mix(in srgb, var(--good) 12%, var(--surface-1)); color: var(--good); }
+.sc1 { background: color-mix(in srgb, var(--warning) 16%, var(--surface-1)); color: var(--warning); }
+.sc2 { background: color-mix(in srgb, var(--serious) 18%, var(--surface-1)); color: var(--serious); }
+.sc3 { background: color-mix(in srgb, var(--critical) 18%, var(--surface-1)); color: var(--critical); font-weight: 800; }
+.news2-action { font-size: 13px; font-weight: 600; margin-top: 4px; }
+
+/* ---- 人工呼吸器チェック ---- */
+.vent-checks { display: flex; flex-direction: column; gap: 6px; margin: 10px 0; }
+.vent-row { display: flex; gap: 8px; align-items: baseline; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border); font-size: 13px; }
+.vent-ic { flex-shrink: 0; }
+.vent-lbl { font-weight: 700; min-width: 130px; flex-shrink: 0; }
+.vent-msg { color: var(--text-secondary); }
+
+/* ---- 抗菌薬アルゴリズム所見 ---- */
+.abx-findings { margin: 10px 0; display: flex; flex-direction: column; gap: 6px; }
+.abx-item { display: flex; gap: 8px; align-items: baseline; padding: 8px 10px; border-radius: 8px; font-size: 13px; }
+.abx-ic { flex-shrink: 0; }
+.abx-critical { background: color-mix(in srgb, var(--critical) 14%, var(--surface-1)); color: var(--critical); }
+.abx-warning { background: color-mix(in srgb, var(--warning) 14%, var(--surface-1)); color: var(--warning); }
+.abx-info { background: color-mix(in srgb, var(--muted) 10%, var(--surface-1)); color: var(--text-secondary); }
+.am-jp { font-size: 11px; margin-left: 6px; }
+.am-note { cursor: help; margin-left: 4px; }

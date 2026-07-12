@@ -4,6 +4,7 @@
 
 import { db, uid } from './db.js';
 import * as L from './logic.js';
+import * as C from './clinical.js';
 import {
   $, $$, esc, fmtTime, fmtDateTime, todayStr,
   openModal, toast, confirmDialog,
@@ -12,9 +13,29 @@ import {
 } from './ui.js';
 
 const FACILITIES = ['KRC', 'SMM'];
-const REASON_TAGS = ['呼吸悪化', '循環不安定', '感染兆候', 'device長期', '鎮静深い', '現場体制薄い', 'トレンド不穏', 'その他'];
+const REASON_TAGS = ['呼吸悪化', '循環不安定', '感染兆候', 'デバイス長期', '鎮静が深い', '現場体制が薄い', 'トレンド不穏', 'その他'];
 const DOMAIN_LABEL = { resp: '呼吸', circ: '循環', infection: '感染', sedation: '鎮静', other: 'その他' };
-const SOURCE_LABEL = { eRN: 'eRN発', floor: '現場発', alert: 'アラート発', device: 'device起因' };
+const SOURCE_LABEL = { eRN: 'eRN が先に検知', floor: '現場が先に検知', alert: 'アラート', device: 'デバイス起因' };
+
+// 監視役割（旧 race layer）の日本語ラベル。proactive=先回り, reactive=待機
+const ROLE = {
+  proactive: { short: '先回り', long: 'eRN 先回り', desc: 'eRN が先回りして見にいく（現場が拾いにくい悪化を持つ）' },
+  reactive: { short: '待機', long: '現場待機', desc: '現場が確実に拾うので、eRN は閾値アラートだけ持って待つ' },
+};
+
+// 問題点の系統（roster 一覧表示用）
+const SYSTEMS = [
+  { key: 'consciousness', label: '意識' },
+  { key: 'resp', label: '呼吸' },
+  { key: 'circ', label: '循環' },
+  { key: 'infection', label: '感染' },
+  { key: 'renal', label: '腎/代謝' },
+];
+const SEVERITY = {
+  stable: { label: '安定', cls: 'sev-stable' },
+  caution: { label: '注意', cls: 'sev-caution' },
+  alert: { label: '要対応', cls: 'sev-alert' },
+};
 
 let settings = { ...L.DEFAULT_SETTINGS };
 
@@ -71,8 +92,37 @@ function latestValues(patient, prs, beforeRoundNumber = Infinity) {
     .filter(pr => pr.patient_id === patient.id && pr.round_number < beforeRoundNumber)
     .sort((a, b) => a.round_number - b.round_number);
   const last = past[past.length - 1];
-  if (last) return { ews: last.ews, race_layer: last.race_layer, note: last.note };
-  return { ews: patient.initial_ews ?? 0, race_layer: patient.race_layer, note: '' };
+  if (last) return {
+    ews: last.ews, race_layer: last.race_layer, note: last.note,
+    vitals: last.vitals || {}, acuity: last.acuity ?? null, drs: last.drs ?? null,
+    problems: last.problems || {},
+  };
+  return {
+    ews: patient.initial_ews ?? 0, race_layer: patient.race_layer, note: '',
+    vitals: {}, acuity: null, drs: null, problems: {},
+  };
+}
+
+// NEWS2 サブスコアと感染トリガーから系統別の問題点(安定/注意/要対応)を自動判定
+function deriveProblems(vitals, triggers, manual = {}) {
+  const sub = C.news2Sub(vitals || {});
+  const sysFrom = (...scores) => {
+    const vals = scores.filter(v => v != null);
+    if (!vals.length) return null;
+    const m = Math.max(...vals);
+    return m >= 3 ? 'alert' : m >= 2 ? 'caution' : m >= 1 ? 'caution' : 'stable';
+  };
+  const auto = {
+    consciousness: sub.consciousness == null ? null : (sub.consciousness >= 3 ? 'alert' : 'stable'),
+    resp: sysFrom(sub.resp_rate, sub.spo2, sub.o2),
+    circ: sysFrom(sub.sbp, sub.pulse),
+    infection: triggers && (triggers.device_warn || triggers.dot_warn || triggers.deesc_due) ? 'caution' : null,
+    renal: null,
+  };
+  // 手動指定があれば優先
+  const out = {};
+  for (const s of SYSTEMS) out[s.key] = manual[s.key] || auto[s.key] || null;
+  return out;
 }
 
 function patientRowData(patient, prs, infection, round) {
@@ -82,7 +132,9 @@ function patientRowData(patient, prs, infection, round) {
   const triggers = L.infectionTriggers(infection, settings);
   const score = L.riskScore({ ews, delta, triggers, proactive: patient.race_layer === 'proactive' });
   const currentPR = round ? own.find(pr => pr.round_id === round.id) : null;
-  return { patient, values, ews, delta, triggers, score, currentPR, own };
+  const lastPR = own.slice().sort((a, b) => a.round_number - b.round_number).pop();
+  const problems = deriveProblems(lastPR && lastPR.vitals, triggers, lastPR && lastPR.problems);
+  return { patient, values, ews, delta, triggers, score, currentPR, own, lastPR, problems };
 }
 
 // ---------------------------------------------------------------- 共通レイアウト
@@ -90,9 +142,9 @@ function patientRowData(patient, prs, infection, round) {
 function shell(content, active) {
   const shiftId = currentShiftId();
   const tabs = [
-    ['roster', 'Roster', shiftId ? `#/roster/${shiftId}` : '#/home'],
-    ['summary', 'サマリ', shiftId ? `#/summary/${shiftId}` : '#/home'],
-    ['dashboard', '蓄積', '#/dashboard'],
+    ['roster', '患者リスト', shiftId ? `#/roster/${shiftId}` : '#/home'],
+    ['summary', 'シフト集計', shiftId ? `#/summary/${shiftId}` : '#/home'],
+    ['dashboard', '蓄積分析', '#/dashboard'],
     ['home', 'シフト', '#/home'],
     ['settings', '設定', '#/settings'],
   ];
@@ -256,7 +308,7 @@ async function renderRoster(shiftId) {
     <div class="fab-bar">
       <button class="btn" id="add-patient">＋患者</button>
       <button class="btn btn-primary" id="log-intervention">＋介入記録</button>
-      <button class="btn" id="to-summary">シフトサマリ →</button>
+      <button class="btn" id="to-summary">シフト集計 →</button>
     </div>`}
   `, 'roster');
 
@@ -290,17 +342,28 @@ async function renderRoster(shiftId) {
   });
 }
 
+function problemChips(problems) {
+  // 注意/要対応の系統のみ表示（安定・未評価は省いて視認性を上げる）
+  const active = SYSTEMS
+    .map(s => ({ label: s.label, sev: problems[s.key] }))
+    .filter(x => x.sev === 'caution' || x.sev === 'alert');
+  if (!active.length) return '<span class="prob-none muted">—</span>';
+  return active.map(x =>
+    `<span class="prob-chip ${SEVERITY[x.sev].cls}">${x.label}</span>`).join('');
+}
+
 function rosterRow(r, round, readonly) {
   const p = r.patient;
   const t = r.triggers;
+  const scoreLabel = (r.lastPR && r.lastPR.vitals && Object.keys(r.lastPR.vitals).length) ? 'NEWS2' : 'スコア';
   const status = !round ? '' :
     !r.currentPR ? `<span class="chip chip-todo">未確認</span>` :
     r.currentPR.entry_status === 'carried' ? `<span class="chip chip-muted">変化なし</span>` :
       `<span class="chip chip-updated">更新済</span>`;
   const flags = [
-    t.device_warn ? '<span class="flag flag-warn" title="device-days 警告">dev</span>' : '',
-    t.dot_warn ? '<span class="flag flag-warn" title="DOT 警告">DOT</span>' : '',
-    t.deesc_due ? '<span class="flag flag-due" title="de-escalation 検討">de-esc</span>' : '',
+    t.device_warn ? '<span class="flag flag-warn" title="デバイス留置日数の警告">デバイス</span>' : '',
+    t.dot_warn ? '<span class="flag flag-warn" title="抗菌薬投与日数(DOT)の警告">DOT</span>' : '',
+    t.deesc_due ? '<span class="flag flag-due" title="狭域化(de-escalation)の検討時期">狭域化</span>' : '',
   ].join('');
   const carryBtn = round && !readonly && !r.currentPR
     ? (p.race_layer === 'proactive'
@@ -314,13 +377,14 @@ function rosterRow(r, round, readonly) {
       <div class="bed-label">${p.pinned ? '📌 ' : ''}${esc(p.bed_label)}</div>
       <div class="anon muted">${esc(p.anon_id)}</div>
     </div>
-    <button class="race-toggle ${p.race_layer}" data-race title="race 層を切替">
-      ${p.race_layer === 'proactive' ? 'PRO' : 'REA'}
+    <button class="race-toggle ${p.race_layer}" data-race title="監視役割を切替（先回り／待機）">
+      ${ROLE[p.race_layer].short}
     </button>
     <div class="trend">
       ${sparkline(r.values.length ? r.values : [r.ews])}
-      <span class="ews-now">EWS ${r.ews}</span>${deltaBadge(r.values.length >= 2 ? r.delta : null)}
+      <span class="ews-now">${scoreLabel} ${r.ews}</span>${deltaBadge(r.values.length >= 2 ? r.delta : null)}
     </div>
+    <div class="problems">${problemChips(r.problems)}</div>
     <div class="flags">${flags}</div>
     <div class="row-status">${status}${carryBtn}</div>
     <button class="btn btn-icon" data-detail title="患者詳細">ⓘ</button>
@@ -352,16 +416,16 @@ async function endRound(bundle, round, rows) {
   const proTodo = todo.filter(r => r.patient.race_layer === 'proactive');
   if (proTodo.length) {
     return openModal(`
-      <div class="modal-head">未確認の proactive 患者があります</div>
+      <div class="modal-head">未確認の「先回り」患者があります</div>
       <div class="modal-body">
-        <p>proactive 患者は「変化なし」一括確定できません。開いて更新してください。</p>
+        <p>「先回り」患者は「変化なし」一括確定できません。開いて更新してください。</p>
         <ul>${proTodo.map(r => `<li>${esc(r.patient.bed_label)}（${esc(r.patient.anon_id)}）</li>`).join('')}</ul>
       </div>
       <div class="modal-actions"><button class="btn btn-primary" data-close>戻る</button></div>`);
   }
   if (todo.length) {
     const ok = await confirmDialog(
-      `未確認の reactive 患者が ${todo.length} 名います。前回値を引き継いで（変化なし扱い）ラウンドを終了しますか？`,
+      `未確認の「待機」患者が ${todo.length} 名います。前回値を引き継いで（変化なし扱い）ラウンドを終了しますか？`,
       { okLabel: '引き継いで終了' });
     if (!ok) return;
     for (const r of todo) await carryForward(bundle, round, r, { silent: true });
@@ -374,7 +438,7 @@ async function endRound(bundle, round, rows) {
 
 async function carryForward(bundle, round, rowData, { silent = false } = {}) {
   const p = rowData.patient;
-  if (p.race_layer === 'proactive') return toast('proactive 患者は開いて更新してください');
+  if (p.race_layer === 'proactive') return toast('「先回り」患者は開いて更新してください');
   if (rowData.currentPR) return;
   const prev = latestValues(p, bundle.patientRounds, round.round_number);
   const triggers = L.infectionTriggers(bundle.infections.get(p.id), settings);
@@ -389,9 +453,91 @@ async function carryForward(bundle, round, rowData, { silent = false } = {}) {
     infection_trigger_snapshot: triggers,
     entry_status: 'carried',
     note: '',
+    vitals: prev.vitals || {},
+    acuity: prev.acuity ?? null,
+    drs: prev.drs ?? null,
+    problems: prev.problems || {},
     at: new Date().toISOString(),
   });
   if (!silent) render();
+}
+
+// --- NEWS2 バイタル入力ブロック（教育ガイド付き） ---
+
+const VITAL_FIELDS = [
+  { id: 'resp_rate', g: 'resp_rate', ph: '例: 18', step: 1 },
+  { id: 'spo2', g: 'spo2', ph: '例: 97', step: 1 },
+  { id: 'sbp', g: 'sbp', ph: '例: 120', step: 1 },
+  { id: 'pulse', g: 'pulse', ph: '例: 78', step: 1 },
+  { id: 'temp', g: 'temp', ph: '例: 36.8', step: 0.1 },
+];
+
+function vitalsBlock(v = {}) {
+  const num = x => (x == null || x === '' ? '' : x);
+  const field = f => {
+    const g = C.NEWS2_GUIDE[f.g];
+    return `
+      <div class="vital">
+        <label class="vital-label" title="${esc(g.note)}">${g.label}<span class="vunit">${g.unit}</span></label>
+        <input type="number" step="${f.step}" inputmode="decimal" class="vital-in" data-vital="${f.id}"
+          value="${num(v[f.id])}" placeholder="${f.ph}">
+        <span class="vital-sub muted">正常 ${esc(g.normal)}</span>
+      </div>`;
+  };
+  return `
+    <div class="vitals-grid">
+      ${VITAL_FIELDS.map(field).join('')}
+      <div class="vital">
+        <label class="vital-label" title="${esc(C.NEWS2_GUIDE.o2.note)}">酸素投与</label>
+        ${segmented('on_oxygen', [{ value: '0', label: '室内気' }, { value: '1', label: '酸素' }], v.on_oxygen ? '1' : '0')}
+        <span class="vital-sub muted">SpO₂目標
+          <button type="button" class="mini-toggle" data-spo2scale>${v.spo2_scale === 2 ? 'Scale2(88-92%)' : 'Scale1(≥96%)'}</button>
+        </span>
+      </div>
+      <div class="vital vital-wide">
+        <label class="vital-label" title="${esc(C.NEWS2_GUIDE.consciousness.note)}">意識 ACVPU</label>
+        ${segmented('acvpu', [
+          { value: 'A', label: 'A清明' }, { value: 'C', label: 'C錯乱' },
+          { value: 'V', label: 'V呼名' }, { value: 'P', label: 'P痛み' }, { value: 'U', label: 'U無反応' },
+        ], v.consciousness || 'A')}
+      </div>
+    </div>
+    <div class="news2-panel" id="news2-panel"></div>`;
+}
+
+function readVitals(m) {
+  const v = {};
+  m.querySelectorAll('[data-vital]').forEach(inp => {
+    if (inp.value !== '') v[inp.dataset.vital] = Number(inp.value);
+  });
+  v.on_oxygen = segValue(m, 'on_oxygen') === '1';
+  v.consciousness = segValue(m, 'acvpu') || 'A';
+  v.spo2_scale = m._spo2scale || 1;
+  return v;
+}
+
+function news2PanelHTML(vitals) {
+  const r = C.news2(vitals);
+  if (r.measured === 0) {
+    return `<div class="news2-empty muted">バイタルを入力すると NEWS2 が自動採点されます</div>`;
+  }
+  const chips = [
+    ['resp_rate', '呼吸数'], ['spo2', 'SpO₂'], ['o2', '酸素'],
+    ['sbp', 'SBP'], ['pulse', 'HR'], ['consciousness', '意識'], ['temp', '体温'],
+  ].map(([k, lbl]) => {
+    const s = r.sub[k];
+    if (s == null) return '';
+    const cls = s >= 3 ? 'sc3' : s >= 2 ? 'sc2' : s >= 1 ? 'sc1' : 'sc0';
+    return `<span class="sc-chip ${cls}">${lbl} ${s}</span>`;
+  }).join('');
+  const bandCls = { high: 'band-high', medium: 'band-medium', low: 'band-low', zero: 'band-zero' }[r.band] || '';
+  return `
+    <div class="news2-head ${bandCls}">
+      <span class="news2-total">NEWS2 <b>${r.total}</b></span>
+      <span class="news2-band">${{ high: '高リスク', medium: '中リスク', low: '低リスク', zero: '安定' }[r.band] || ''}${r.redFlag ? '・単一項目3点(red)' : ''}</span>
+    </div>
+    <div class="sc-chips">${chips}</div>
+    <div class="news2-action">${esc(r.action)}</div>`;
 }
 
 // クイックシート: 前回値プリフィル・差分のみ編集
@@ -399,55 +545,77 @@ function openQuickSheet(bundle, round, rowData) {
   const p = rowData.patient;
   const existing = rowData.currentPR;
   const prev = existing
-    ? { ews: existing.ews, race_layer: existing.race_layer, note: existing.note }
+    ? { ews: existing.ews, race_layer: existing.race_layer, note: existing.note,
+        vitals: existing.vitals || {}, acuity: existing.acuity ?? null, drs: existing.drs ?? null }
     : latestValues(p, bundle.patientRounds, round.round_number);
 
   const m = openModal(`
     <div class="modal-head">R${round.round_number} ${esc(p.bed_label)} <span class="muted">${esc(p.anon_id)} / ${esc(p.facility)}</span></div>
     <div class="modal-body form">
-      <label>EWS（前回 ${prev.ews}）
-        <div class="stepper">
-          <button type="button" class="btn" data-step="-1">−</button>
-          <input type="number" id="qs-ews" inputmode="numeric" min="0" max="20" value="${prev.ews}">
-          <button type="button" class="btn" data-step="1">＋</button>
+      <fieldset class="vfs"><legend>バイタル → NEWS2 自動採点</legend>
+        ${vitalsBlock(prev.vitals || {})}
+      </fieldset>
+
+      <fieldset class="vfs"><legend>PHILIPS eCareManager 指標（任意）</legend>
+        <div class="form-row">
+          <label>Acuity（重症度）<input type="number" step="0.1" id="qs-acuity" inputmode="decimal" value="${prev.acuity ?? ''}" placeholder="eCM 値">
+            <span class="hint">eCM の重症度スコア。高いほど重症・要注視。</span></label>
+          <label>DRS（退室準備度）<input type="number" step="0.1" id="qs-drs" inputmode="decimal" value="${prev.drs ?? ''}" placeholder="eCM 値">
+            <span class="hint">Discharge Readiness Score。高いほど退室に近い。</span></label>
         </div>
-      </label>
-      <label>race 層
+      </fieldset>
+
+      <label>監視役割
         ${segmented('race', [
-          { value: 'proactive', label: 'proactive（先回り）' },
-          { value: 'reactive', label: 'reactive（待機）' },
+          { value: 'proactive', label: '先回り（eRNが先に見る）' },
+          { value: 'reactive', label: '待機（現場に任せ閾値監視）' },
         ], prev.race_layer)}
       </label>
-      <div id="flip-extra" class="flip-extra ${prev.race_layer === 'proactive' ? 'hidden' : 'hidden'}">
-        <label>選定理由（reactive→proactive フリップ・複数可）
+      <div id="flip-extra" class="flip-extra hidden">
+        <label>先回りに切替えた理由（複数可）
           <div class="seg seg-wrap" data-seg="reasons" data-multi>
             ${REASON_TAGS.map(t => `<button type="button" class="seg-btn" data-value="${esc(t)}">${esc(t)}</button>`).join('')}
           </div>
         </label>
         <label>現場体制メモ（任意）<input type="text" id="qs-floorctx" placeholder="例: 夜勤2名・新人あり"></label>
       </div>
-      <label>メモ（任意・Scribble可）<textarea id="qs-note" rows="2">${esc(prev.note || '')}</textarea></label>
+      <label>メモ（任意・Scribble可）<textarea id="qs-note" class="scribble" rows="3">${esc(prev.note || '')}</textarea></label>
     </div>
     <div class="modal-actions">
       <button class="btn" data-close>キャンセル</button>
       <button class="btn btn-primary" id="qs-save">保存（更新済）</button>
     </div>`);
 
-  m.querySelectorAll('[data-step]').forEach(b => b.addEventListener('click', () => {
-    const input = m.querySelector('#qs-ews');
-    input.value = Math.max(0, Math.min(20, (Number(input.value) || 0) + Number(b.dataset.step)));
-  }));
+  m._spo2scale = prev.vitals && prev.vitals.spo2_scale === 2 ? 2 : 1;
+  const refreshPanel = () => {
+    m.querySelector('#news2-panel').innerHTML = news2PanelHTML(readVitals(m));
+  };
+  refreshPanel();
+
+  m.querySelectorAll('[data-vital]').forEach(inp => inp.addEventListener('input', refreshPanel));
+  m.querySelector('[data-spo2scale]')?.addEventListener('click', e => {
+    m._spo2scale = m._spo2scale === 2 ? 1 : 2;
+    e.target.textContent = m._spo2scale === 2 ? 'Scale2(88-92%)' : 'Scale1(≥96%)';
+    refreshPanel();
+  });
 
   m.addEventListener('segchange', e => {
-    if (e.detail.name !== 'race') return;
-    const flipping = prev.race_layer === 'reactive' && e.detail.value === 'proactive';
-    m.querySelector('#flip-extra').classList.toggle('hidden', !flipping);
+    if (e.detail.name === 'race') {
+      const flipping = prev.race_layer === 'reactive' && e.detail.value === 'proactive';
+      m.querySelector('#flip-extra').classList.toggle('hidden', !flipping);
+    }
+    if (e.detail.name === 'on_oxygen' || e.detail.name === 'acvpu') refreshPanel();
   });
 
   m.querySelector('#qs-save').addEventListener('click', async () => {
-    const ews = Number(m.querySelector('#qs-ews').value) || 0;
+    const vitals = readVitals(m);
+    const n2 = C.news2(vitals);
+    // スコア: バイタルが入っていれば NEWS2 総点、無ければ前回値を維持
+    const ews = n2.measured > 0 ? n2.total : (prev.ews ?? 0);
     const race = segValue(m, 'race') || prev.race_layer;
     const note = m.querySelector('#qs-note').value.trim();
+    const acuity = m.querySelector('#qs-acuity').value === '' ? null : Number(m.querySelector('#qs-acuity').value);
+    const drs = m.querySelector('#qs-drs').value === '' ? null : Number(m.querySelector('#qs-drs').value);
     const flipped = prev.race_layer === 'reactive' && race === 'proactive';
 
     const triggers = L.infectionTriggers(bundle.infections.get(p.id), settings);
@@ -462,6 +630,10 @@ function openQuickSheet(bundle, round, rowData) {
       infection_trigger_snapshot: triggers,
       entry_status: 'updated',
       note,
+      vitals,
+      acuity,
+      drs,
+      problems: deriveProblems(vitals, triggers, (existing && existing.problems) || {}),
       at: new Date().toISOString(),
     });
     if (race !== p.race_layer) {
@@ -480,18 +652,18 @@ function openQuickSheet(bundle, round, rowData) {
   });
 }
 
-// roster 上の race トグル
+// roster 上の監視役割トグル（先回り／待機）
 async function toggleRace(bundle, round, patient) {
   if (patient.race_layer === 'proactive') {
-    const ok = await confirmDialog(`${patient.bed_label} を reactive（待機）に戻しますか？`, { okLabel: '戻す' });
+    const ok = await confirmDialog(`${patient.bed_label} を「待機」に戻しますか？`, { okLabel: '戻す' });
     if (!ok) return;
     patient.race_layer = 'reactive';
     await db.put('patients', patient);
     return render();
   }
-  // reactive → proactive: フリップイベントとして理由タグ付きで記録
+  // 待機 → 先回り: 切替イベントとして理由タグ付きで記録
   const m = openModal(`
-    <div class="modal-head">${esc(patient.bed_label)} を proactive に切替</div>
+    <div class="modal-head">${esc(patient.bed_label)} を「先回り」に切替</div>
     <div class="modal-body form">
       <label>選定理由（複数可）
         <div class="seg seg-wrap" data-seg="reasons" data-multi>
@@ -547,7 +719,7 @@ async function recordRaceFlip(bundle, patient, round, { reason_tags, floor_conte
     reason_tags: reason_tags || [],
     resulted_in_intervention: null, // シフト終了時に突合
   });
-  toast('race フリップを記録しました');
+  toast('役割切替（先回り化）を記録しました');
 }
 
 // ---------------------------------------------------------------- 患者追加 / 編集
@@ -564,13 +736,19 @@ function openPatientModal(shift, patient) {
       </div>
       <div class="form-row">
         <label>年齢 <input type="number" id="pt-age" inputmode="numeric" value="${p.age ?? ''}"></label>
-        <label>初期EWS <input type="number" id="pt-ews" inputmode="numeric" min="0" max="20" value="${p.initial_ews ?? 0}" ${patient ? 'disabled' : ''}></label>
+        <label>性別 ${segmented('sex', [{ value: 'male', label: '男性' }, { value: 'female', label: '女性' }], p.sex || 'male')}</label>
       </div>
-      <label>診断サマリ（Scribble可）<textarea id="pt-dx" rows="2">${esc(p.dx_summary || '')}</textarea></label>
+      <div class="form-row">
+        <label>身長 (cm) <input type="number" id="pt-height" step="0.1" inputmode="decimal" value="${p.height_cm ?? ''}" placeholder="例: 165">
+          <span class="hint">理想体重(IBW)・一回換気量計算に使用</span></label>
+        <label>体重 (kg) <input type="number" id="pt-weight" step="0.1" inputmode="decimal" value="${p.weight_kg ?? ''}" placeholder="例: 60"></label>
+      </div>
+      ${patient ? '' : `<label>初期スコア（NEWS2未入力時の目安）<input type="number" id="pt-ews" inputmode="numeric" min="0" max="20" value="${p.initial_ews ?? 0}"></label>`}
+      <label>診断サマリ（Scribble可）<textarea id="pt-dx" class="scribble" rows="2">${esc(p.dx_summary || '')}</textarea></label>
       <label>鎮静 ${segmented('sedation', [{ value: '1', label: 'あり' }, { value: '0', label: 'なし' }], p.sedation ? '1' : '0')}</label>
-      ${patient ? '' : `<label>初期 race 層 ${segmented('race0', [
-        { value: 'reactive', label: 'reactive（待機）' },
-        { value: 'proactive', label: 'proactive（先回り）' },
+      ${patient ? '' : `<label>初期の監視役割 ${segmented('race0', [
+        { value: 'reactive', label: '待機（現場に任せる）' },
+        { value: 'proactive', label: '先回り（eRNが先に見る）' },
       ], 'reactive')}</label>`}
     </div>
     <div class="modal-actions">
@@ -581,6 +759,7 @@ function openPatientModal(shift, patient) {
     const bed = m.querySelector('#pt-bed').value.trim();
     const anon = m.querySelector('#pt-anon').value.trim();
     if (!bed && !anon) return toast('病床か匿名IDを入力してください');
+    const numOf = id => m.querySelector(id).value === '' ? null : Number(m.querySelector(id).value);
     const rec = {
       id: p.id || uid(),
       shift_id: shift.id,
@@ -588,10 +767,14 @@ function openPatientModal(shift, patient) {
       bed_label: bed || '-',
       anon_id: anon || '-',
       age: m.querySelector('#pt-age').value ? Number(m.querySelector('#pt-age').value) : null,
+      sex: segValue(m, 'sex') || 'male',
+      height_cm: numOf('#pt-height'),
+      weight_kg: numOf('#pt-weight'),
       dx_summary: m.querySelector('#pt-dx').value.trim(),
       sedation: segValue(m, 'sedation') === '1',
       initial_ews: patient ? p.initial_ews : (Number(m.querySelector('#pt-ews').value) || 0),
       race_layer: patient ? p.race_layer : (segValue(m, 'race0') || 'reactive'),
+      ventilator: p.ventilator || null,
       pinned: p.pinned || false,
       created_at: p.created_at || new Date().toISOString(),
     };
@@ -614,18 +797,18 @@ function openInterventionModal(bundle, round, defaultPatientId) {
           ${patients.map(p => `<option value="${p.id}" ${p.id === defaultPatientId ? 'selected' : ''}>${esc(p.bed_label)}（${esc(p.anon_id)} / ${esc(p.facility)}）</option>`).join('')}
         </select>
       </label>
-      <label>trigger source ${segmented('source', [
-        { value: 'eRN', label: 'eRN発' }, { value: 'floor', label: '現場発' },
-        { value: 'alert', label: 'アラート発' }, { value: 'device', label: 'device起因' },
+      <label>誰が先に気づいたか ${segmented('source', [
+        { value: 'eRN', label: 'eRNが先' }, { value: 'floor', label: '現場が先' },
+        { value: 'alert', label: 'アラート' }, { value: 'device', label: 'デバイス起因' },
       ], 'eRN')}</label>
-      <label>category ${segmented('category', [
-        { value: 'proactive', label: 'proactive' }, { value: 'reactive', label: 'reactive' },
+      <label>区分 ${segmented('category', [
+        { value: 'proactive', label: '先回り' }, { value: 'reactive', label: '待機からの反応' },
       ], 'proactive')}</label>
       <label>領域 ${segmented('domain', Object.entries(DOMAIN_LABEL).map(([v, l]) => ({ value: v, label: l })), 'resp')}</label>
-      <label>outcome ${segmented('outcome', [
+      <label>結果 ${segmented('outcome', [
         { value: 'needed', label: '介入要だった' }, { value: 'miss', label: '空振り' },
       ], 'needed')}</label>
-      <label>内容（任意・Scribble可）<textarea id="iv-note" rows="2"></textarea></label>
+      <label>内容（任意・Scribble可）<textarea id="iv-note" class="scribble" rows="2"></textarea></label>
     </div>
     <div class="modal-actions">
       <button class="btn" data-close>キャンセル</button>
@@ -665,73 +848,87 @@ async function renderPatient(patientId) {
   const dd = L.deviceDays(infection.devices);
   const triggers = L.infectionTriggers(infection, settings);
   const roundNoById = new Map(rounds.map(r => [r.id, r.round_number]));
+  const lastVitals = (own.slice().reverse().find(pr => pr.vitals && Object.keys(pr.vitals).length) || {}).vitals;
 
   shell(`
     <section class="card">
       <div class="detail-head">
-        <button class="btn" id="back">← Roster</button>
-        <h2>${esc(patient.bed_label)} <span class="muted">${esc(patient.anon_id)} / ${esc(patient.facility)} / ${patient.age != null ? patient.age + '歳' : '年齢-'}</span></h2>
+        <button class="btn" id="back">← 患者リスト</button>
+        <h2>${esc(patient.bed_label)} <span class="muted">${esc(patient.anon_id)} / ${esc(patient.facility)} / ${patient.age != null ? patient.age + '歳' : '年齢-'} / ${patient.sex === 'female' ? '女性' : '男性'}</span></h2>
         <div class="detail-actions">
           ${readonly ? '' : `
           <button class="btn" id="pin">${patient.pinned ? '📌 ピン解除' : '📌 ピン留め'}</button>
           <button class="btn" id="edit-pt">編集</button>`}
         </div>
       </div>
-      <p class="dx">${esc(patient.dx_summary || '診断サマリ未入力')} / 鎮静${patient.sedation ? 'あり' : 'なし'}</p>
+      <p class="dx">${esc(patient.dx_summary || '診断サマリ未入力')} / 鎮静${patient.sedation ? 'あり' : 'なし'}
+        ${patient.height_cm ? ` / ${patient.height_cm}cm` : ''}${patient.weight_kg ? ` ${patient.weight_kg}kg` : ''}
+        ${patient.height_cm ? ` / IBW ${Math.round(C.idealBodyWeight(patient.height_cm, patient.sex))}kg` : ''}</p>
       <div class="race-line">
-        <span>race 層:</span>
+        <span>監視役割:</span>
         <button class="race-toggle ${patient.race_layer}" id="race-toggle" ${readonly ? 'disabled' : ''}>
-          ${patient.race_layer === 'proactive' ? 'proactive（先回り）' : 'reactive（待機）'}
+          ${ROLE[patient.race_layer].long}
         </button>
+        <span class="muted">${ROLE[patient.race_layer].desc}</span>
       </div>
     </section>
 
     <section class="card">
-      <h3>EWS ラウンド推移</h3>
+      <h3>NEWS2 / スコア ラウンド推移</h3>
       ${own.length ? `
         <div class="ews-big">${sparkline(own.map(pr => pr.ews), { w: 320, h: 60 })}</div>
-        <table class="table">
-          <thead><tr><th>R</th><th>時刻</th><th>EWS</th><th>race</th><th>入力</th><th>メモ</th></tr></thead>
+        <div class="table-scroll"><table class="table">
+          <thead><tr><th>R</th><th>時刻</th><th>NEWS2</th><th>Acuity</th><th>DRS</th><th>役割</th><th>入力</th><th>メモ</th></tr></thead>
           <tbody>${own.map(pr => `
             <tr><td>R${pr.round_number}</td><td>${fmtTime(pr.at)}</td><td>${pr.ews}</td>
-            <td>${pr.race_layer === 'proactive' ? 'PRO' : 'REA'}</td>
+            <td>${pr.acuity ?? '—'}</td><td>${pr.drs ?? '—'}</td>
+            <td>${ROLE[pr.race_layer].short}</td>
             <td>${pr.entry_status === 'carried' ? '変化なし' : '更新'}</td>
             <td class="note-cell">${esc(pr.note || '')}</td></tr>`).join('')}
           </tbody>
-        </table>` : `<p class="empty">まだ観測がありません（初期EWS: ${patient.initial_ews ?? 0}）</p>`}
+        </table></div>` : `<p class="empty">まだ観測がありません</p>`}
     </section>
+
+    ${ventilatorCard(patient, lastVitals, readonly)}
 
     <section class="card">
       <h3>感染治療状況
-        ${triggers.device_warn ? '<span class="flag flag-warn">dev</span>' : ''}
+        ${triggers.device_warn ? '<span class="flag flag-warn">デバイス</span>' : ''}
         ${triggers.dot_warn ? '<span class="flag flag-warn">DOT</span>' : ''}
-        ${triggers.deesc_due ? '<span class="flag flag-due">de-esc</span>' : ''}
+        ${triggers.deesc_due ? '<span class="flag flag-due">狭域化</span>' : ''}
       </h3>
       <div class="inf-grid">
         <div><span class="muted">感染源/疑い部位:</span> ${esc(infection.source || '—')}</div>
-        <div><span class="muted">起因菌:</span> ${esc((infection.organisms || []).join(', ') || '—')}</div>
+        <div><span class="muted">グラム染色:</span> ${esc(gramLabel(infection.gram_stain) || '—')}</div>
+        <div><span class="muted">起因菌:</span> ${esc(organismNames(infection.organisms) || '—')}</div>
         <div><span class="muted">培養:</span> ${cultureLabel(infection.culture_status)}</div>
-        <div><span class="muted">de-escalation:</span> ${deescLabel(infection.deescalation)}</div>
-        <div><span class="muted">device-days:</span>
+        <div><span class="muted">狭域化(de-escalation):</span> ${deescLabel(infection.deescalation)}</div>
+        <div><span class="muted">腎機能:</span> ${infection.crcl != null ? `CrCl ${infection.crcl}` : '—'}${infection.crrt ? ' / CRRT中' : ''}</div>
+        <div><span class="muted">デバイス留置日数:</span>
           CVC ${dd.cvc || '—'} / 尿カテ ${dd.foley || '—'} / 人工呼吸 ${dd.vent || '—'}</div>
       </div>
       ${(infection.antimicrobials || []).length ? `
-      <table class="table">
+      <div class="table-scroll"><table class="table">
         <thead><tr><th>抗菌薬</th><th>開始</th><th>DOT</th><th>スペクトラム</th><th></th></tr></thead>
-        <tbody>${infection.antimicrobials.map((am, i) => `
-          <tr><td>${esc(am.name)}</td><td>${esc(am.start_date)}</td>
+        <tbody>${infection.antimicrobials.map((am, i) => {
+          const k = C.findAntimicrobial(am.name);
+          return `<tr><td>${esc(am.name)}${k ? `<span class="am-jp muted">${esc(k.jp)}・${esc(k.cls)}</span>` : ''}</td>
+          <td>${esc(am.start_date)}</td>
           <td>${am.end_date ? `${L.dotDays(am)}（終了）` : L.dotDays(am)}</td>
-          <td>${am.spectrum === 'broad' ? '広域' : '狭域'}</td>
-          <td>${readonly || am.end_date ? '' : `<button class="btn btn-sm" data-am-stop="${i}">終了</button>`}</td></tr>`).join('')}
+          <td>${am.spectrum === 'broad' ? '広域' : '狭域'}${k ? `<span class="am-note muted" title="${esc(k.note)}">ⓘ</span>` : ''}</td>
+          <td>${readonly || am.end_date ? '' : `<button class="btn btn-sm" data-am-stop="${i}">終了</button>`}</td></tr>`;
+        }).join('')}
         </tbody>
-      </table>` : '<p class="empty">抗菌薬なし</p>'}
+      </table></div>` : '<p class="empty">抗菌薬なし</p>'}
+      ${antibioticFindingsHTML(infection)}
       ${(infection.infection_labs || []).length ? `
-      <table class="table">
+      <div class="table-scroll"><table class="table">
         <thead><tr><th>日時</th><th>体温</th><th>WBC</th><th>CRP</th><th>PCT</th></tr></thead>
         <tbody>${infection.infection_labs.map(l => `
           <tr><td>${fmtDateTime(l.t)}</td><td>${l.temp ?? '—'}</td><td>${l.wbc ?? '—'}</td><td>${l.crp ?? '—'}</td><td>${l.pct ?? '—'}</td></tr>`).join('')}
         </tbody>
-      </table>` : ''}
+      </table></div>` : ''}
+      <p class="disclaimer">${esc(C.DISCLAIMER)}</p>
       ${readonly ? '' : `<div class="btn-row">
         <button class="btn" id="edit-inf">感染情報を編集</button>
         <button class="btn" id="add-lab">＋検査値</button>
@@ -762,6 +959,7 @@ async function renderPatient(patientId) {
     $('#race-toggle')?.addEventListener('click', () => toggleRace(bundle, activeRound(rounds), patient));
     $('#edit-inf')?.addEventListener('click', () => openInfectionModal(patient, infection));
     $('#add-lab')?.addEventListener('click', () => openLabModal(patient, infection));
+    $('#edit-vent')?.addEventListener('click', () => openVentilatorModal(patient, lastVitals));
     $('#log-iv')?.addEventListener('click', () => openInterventionModal(bundle, activeRound(rounds), patient.id));
     $$('[data-am-stop]').forEach(b => b.addEventListener('click', async () => {
       infection.antimicrobials[Number(b.dataset.amStop)].end_date = todayStr();
@@ -771,14 +969,144 @@ async function renderPatient(patientId) {
   }
 }
 
+// ---- 人工呼吸器カード（計算・逸脱判定） --------------------------------
+
+function statusRow(label, res) {
+  if (!res) return '';
+  const cls = { high: 'sev-alert', low: 'sev-alert', caution: 'sev-caution', ok: 'sev-stable' }[res.status] || '';
+  const icon = res.status === 'ok' ? '✓' : '⚠';
+  return `<div class="vent-row ${cls}"><span class="vent-ic">${icon}</span>
+    <span class="vent-lbl">${esc(label)}</span><span class="vent-msg">${esc(res.message)}</span></div>`;
+}
+
+function ventilatorCard(patient, lastVitals, readonly) {
+  const v = patient.ventilator;
+  const hasHW = patient.height_cm && patient.sex;
+  if (!v) {
+    return `<section class="card">
+      <h3>人工呼吸器</h3>
+      <p class="empty">未設定。${readonly ? '' : '設定すると一回換気量・ドライビングプレッシャー・FiO₂/PEEP・目標分時換気量を自動チェックします。'}</p>
+      ${readonly ? '' : '<button class="btn" id="edit-vent">＋呼吸器情報を入力</button>'}
+    </section>`;
+  }
+  const vt = tidalIf(v.vt, patient);
+  const dp = C.drivingPressure(v.pplat, v.peep);
+  const fp = C.fio2PeepCheck(v.fio2, v.peep);
+  const mv = C.minuteVentilation(v.rr, v.vt);
+  const paco2 = v.paco2 ?? (lastVitals && lastVitals.paco2);
+  const tmv = mv && paco2 ? C.targetMvForPaco2(mv, paco2, v.target_paco2 || 40) : null;
+  return `<section class="card">
+    <h3>人工呼吸器 <span class="muted">${esc(v.mode || '')}</span></h3>
+    <div class="inf-grid">
+      <div><span class="muted">モード:</span> ${esc(v.mode || '—')}</div>
+      <div><span class="muted">VT:</span> ${v.vt ?? '—'} mL</div>
+      <div><span class="muted">呼吸数:</span> ${v.rr ?? '—'} /分</div>
+      <div><span class="muted">PEEP:</span> ${v.peep ?? '—'} cmH₂O</div>
+      <div><span class="muted">FiO₂:</span> ${v.fio2 ?? '—'} %</div>
+      <div><span class="muted">プラトー圧:</span> ${v.pplat ?? '—'} cmH₂O</div>
+      <div><span class="muted">分時換気量:</span> ${mv ?? '—'} L/分</div>
+      <div><span class="muted">PaCO₂:</span> ${paco2 ?? '—'} mmHg</div>
+    </div>
+    <div class="vent-checks">
+      ${hasHW ? statusRow('一回換気量(6mL/kg IBW)', vt) : '<div class="vent-row muted">身長・性別を入力するとVT評価が表示されます</div>'}
+      ${statusRow('ドライビングプレッシャー', dp)}
+      ${statusRow('FiO₂/PEEP テーブル', fp)}
+      ${tmv ? `<div class="vent-row sev-stable"><span class="vent-ic">🎯</span><span class="vent-lbl">目標PaCO₂の分時換気量</span><span class="vent-msg">${esc(tmv.message)}</span></div>` : ''}
+    </div>
+    <p class="disclaimer">${esc(C.DISCLAIMER)}</p>
+    ${readonly ? '' : '<button class="btn" id="edit-vent">呼吸器情報を編集</button>'}
+  </section>`;
+}
+
+function tidalIf(vt, patient) {
+  if (vt == null || !patient.height_cm) return null;
+  return C.tidalVolumeAssessment(vt, patient.height_cm, patient.sex);
+}
+
+function openVentilatorModal(patient, lastVitals) {
+  const v = patient.ventilator || {};
+  const num = x => (x == null ? '' : x);
+  const m = openModal(`
+    <div class="modal-head">人工呼吸器設定 ${esc(patient.bed_label)}</div>
+    <div class="modal-body form">
+      <label>モード <input type="text" id="vt-mode" value="${esc(v.mode || '')}" placeholder="例: A/C(VC), PSV, SIMV"></label>
+      <div class="form-row">
+        <label>VT 一回換気量 (mL) <input type="number" id="vt-vt" inputmode="numeric" value="${num(v.vt)}" placeholder="例: 400"></label>
+        <label>呼吸数 (/分) <input type="number" id="vt-rr" inputmode="numeric" value="${num(v.rr)}" placeholder="例: 16"></label>
+      </div>
+      <div class="form-row">
+        <label>PEEP (cmH₂O) <input type="number" id="vt-peep" inputmode="numeric" value="${num(v.peep)}" placeholder="例: 8"></label>
+        <label>FiO₂ (%) <input type="number" id="vt-fio2" inputmode="numeric" value="${num(v.fio2)}" placeholder="例: 40"></label>
+      </div>
+      <div class="form-row">
+        <label>プラトー圧 (cmH₂O) <input type="number" id="vt-pplat" inputmode="numeric" value="${num(v.pplat)}" placeholder="例: 22"></label>
+        <label>PaCO₂ (mmHg) <input type="number" id="vt-paco2" step="0.1" inputmode="decimal" value="${num(v.paco2 ?? (lastVitals && lastVitals.paco2))}" placeholder="血ガス"></label>
+      </div>
+      <label>目標 PaCO₂ (mmHg) <input type="number" id="vt-target" inputmode="numeric" value="${num(v.target_paco2 ?? 40)}">
+        <span class="hint">許容的高炭酸ガス血症など目標を変える場合に調整。既定40。</span></label>
+      ${patient.height_cm ? `<p class="hint">IBW ${Math.round(C.idealBodyWeight(patient.height_cm, patient.sex))}kg・6mL/kg目標 ${Math.round(6 * C.idealBodyWeight(patient.height_cm, patient.sex))}mL</p>`
+        : '<p class="hint">身長・性別を患者情報に入力すると一回換気量の評価が有効になります。</p>'}
+    </div>
+    <div class="modal-actions">
+      <button class="btn" data-close>キャンセル</button>
+      <button class="btn btn-primary" id="vt-save">保存</button>
+    </div>`);
+  m.querySelector('#vt-save').addEventListener('click', async () => {
+    const n = id => { const x = m.querySelector(id).value; return x === '' ? null : Number(x); };
+    patient.ventilator = {
+      mode: m.querySelector('#vt-mode').value.trim(),
+      vt: n('#vt-vt'), rr: n('#vt-rr'), peep: n('#vt-peep'), fio2: n('#vt-fio2'),
+      pplat: n('#vt-pplat'), paco2: n('#vt-paco2'), target_paco2: n('#vt-target') || 40,
+      updated_at: new Date().toISOString(),
+    };
+    await db.put('patients', patient);
+    m.close();
+    render();
+  });
+}
+
+// ---- 感染: 抗菌薬適正判定の表示 ----------------------------------------
+
+function antibioticFindingsHTML(infection) {
+  const findings = C.assessAntibiotics({
+    antimicrobials: infection.antimicrobials || [],
+    organisms: infection.organisms || [],
+    renal: { crcl: infection.crcl ?? null, crrt: !!infection.crrt },
+  });
+  if (!findings.length) return '';
+  const order = { critical: 0, warning: 1, info: 2 };
+  findings.sort((a, b) => order[a.level] - order[b.level]);
+  return `<div class="abx-findings">
+    <h4>抗菌薬アルゴリズム（参考）</h4>
+    ${findings.map(f => `<div class="abx-item abx-${f.level}">
+      <span class="abx-ic">${f.level === 'critical' ? '⛔' : f.level === 'warning' ? '⚠' : 'ℹ'}</span>
+      <span>${esc(f.message)}</span></div>`).join('')}
+  </div>`;
+}
+
+function organismNames(orgs) {
+  return (orgs || []).map(o => {
+    const k = C.findOrganism(o);
+    return k ? `${k.jp}(${k.name})` : o;
+  }).join(', ');
+}
+
+function gramLabel(key) {
+  const g = C.GRAM_GUIDE.find(x => x.key === key);
+  return g ? g.label : '';
+}
+
 function emptyInfection(patientId) {
   return {
     patient_id: patientId,
     source: '',
+    gram_stain: '',
     organisms: [],
     culture_status: 'none',
     antimicrobials: [],
     deescalation: 'none',
+    crcl: null,
+    crrt: false,
     devices: {
       cvc: { active: false, start_date: '' },
       foley: { active: false, start_date: '' },
@@ -810,67 +1138,116 @@ function openInfectionModal(patient, infection) {
     <div class="modal-head">感染治療状況 ${esc(patient.bed_label)}</div>
     <div class="modal-body form">
       <label>感染源 / 疑い部位 <input type="text" id="inf-source" value="${esc(inf.source || '')}" placeholder="例: 肺炎疑い"></label>
-      <label>起因菌（カンマ区切り・複数可）<input type="text" id="inf-org" value="${esc((inf.organisms || []).join(', '))}"></label>
+      <label>グラム染色所見
+        <div class="seg seg-wrap" data-seg="gram">
+          <button type="button" class="seg-btn ${!inf.gram_stain ? 'on' : ''}" data-value="">未</button>
+          ${C.GRAM_GUIDE.map(g => `<button type="button" class="seg-btn ${inf.gram_stain === g.key ? 'on' : ''}" data-value="${g.key}">${esc(g.label)}</button>`).join('')}
+        </div>
+        <span class="hint" id="gram-hint">${esc((C.GRAM_GUIDE.find(g => g.key === inf.gram_stain) || {}).hint || 'グラム染色の形態から起因菌を推定します。')}</span>
+      </label>
+      <label>起因菌（該当を選択・複数可）
+        <div class="seg seg-wrap" data-seg="orgs" data-multi>
+          ${C.ORGANISMS.map(o => `<button type="button" class="seg-btn ${(inf.organisms || []).includes(o.key) ? 'on' : ''}" data-value="${o.key}" title="${esc(o.jp)}">${esc(o.name)}</button>`).join('')}
+        </div>
+      </label>
+      <label>その他の菌（カンマ区切り・任意）<input type="text" id="inf-org-free" value="${esc((inf.organisms || []).filter(o => !C.findOrganism(o)).join(', '))}"></label>
       <label>培養状況 ${segmented('culture', [
         { value: 'none', label: '未提出' }, { value: 'pending', label: '結果待ち' },
         { value: 'positive', label: '陽性' }, { value: 'negative', label: '陰性' },
       ], inf.culture_status || 'none')}</label>
-      <label>de-escalation ${segmented('deesc', [
+      <label>狭域化(de-escalation) ${segmented('deesc', [
         { value: 'none', label: '未' }, { value: 'due', label: '検討可' }, { value: 'done', label: '済' },
       ], inf.deescalation || 'none')}</label>
-      <fieldset><legend>device-days（開始日から自動加算）</legend>
+      <fieldset><legend>腎機能（用量チェック用）</legend>
+        <div class="form-row">
+          <label>CrCl / eGFR <input type="number" id="inf-crcl" inputmode="numeric" value="${inf.crcl ?? ''}" placeholder="mL/分"></label>
+          <label>血液浄化 ${segmented('crrt', [{ value: '0', label: 'なし' }, { value: '1', label: 'CRRT中' }], inf.crrt ? '1' : '0')}</label>
+        </div>
+      </fieldset>
+      <fieldset><legend>デバイス留置日数（開始日から自動加算）</legend>
         ${devRow('cvc', 'CVC')}${devRow('foley', '尿カテ')}${devRow('vent', '人工呼吸')}
       </fieldset>
       <fieldset><legend>抗菌薬（DOT 自動計算）</legend>
-        <div id="am-list">${(inf.antimicrobials || []).map((am, i) => `
-          <div class="am-row" data-am="${i}">
-            <span>${esc(am.name)}（${esc(am.start_date)}〜 ${am.spectrum === 'broad' ? '広域' : '狭域'}${am.end_date ? '・終了' : ''}）</span>
-            <button type="button" class="btn btn-sm" data-am-del="${i}">削除</button>
-          </div>`).join('')}</div>
+        <div id="am-list"></div>
+        <datalist id="abx-list">${C.ANTIMICROBIALS.map(a => `<option value="${a.name}">${esc(a.jp)}</option>`).join('')}</datalist>
         <div class="form-row am-new">
-          <input type="text" id="am-name" placeholder="薬剤名">
+          <input type="text" id="am-name" placeholder="薬剤名(例:MEPM)" list="abx-list">
           <input type="date" id="am-start" value="${todayStr()}">
           ${segmented('am-spec', [{ value: 'broad', label: '広域' }, { value: 'narrow', label: '狭域' }], 'broad')}
           <button type="button" class="btn" id="am-add">追加</button>
         </div>
+        <span class="hint" id="abx-hint"></span>
       </fieldset>
+      <div id="abx-preview"></div>
     </div>
     <div class="modal-actions">
       <button class="btn" data-close>キャンセル</button>
       <button class="btn btn-primary" id="inf-save">保存</button>
     </div>`);
 
-  const renderAms = () => {
-    m.querySelector('#am-list').innerHTML = inf.antimicrobials.map((am, i) => `
-      <div class="am-row" data-am="${i}">
-        <span>${esc(am.name)}（${esc(am.start_date)}〜 ${am.spectrum === 'broad' ? '広域' : '狭域'}${am.end_date ? '・終了' : ''}）</span>
-        <button type="button" class="btn btn-sm" data-am-del="${i}">削除</button>
-      </div>`).join('');
+  const collectOrgs = () => {
+    const keys = segValues(m, 'orgs');
+    const free = m.querySelector('#inf-org-free').value.split(',').map(s => s.trim()).filter(Boolean);
+    return [...keys, ...free];
   };
+  const renderAms = () => {
+    m.querySelector('#am-list').innerHTML = inf.antimicrobials.map((am, i) => {
+      const k = C.findAntimicrobial(am.name);
+      return `<div class="am-row" data-am="${i}">
+        <span>${esc(am.name)}${k ? `<span class="am-jp muted">${esc(k.jp)}</span>` : ''}（${esc(am.start_date)}〜 ${am.spectrum === 'broad' ? '広域' : '狭域'}${am.end_date ? '・終了' : ''}）</span>
+        <button type="button" class="btn btn-sm" data-am-del="${i}">削除</button>
+      </div>`;
+    }).join('') || '<span class="muted">未登録</span>';
+  };
+  const refreshPreview = () => {
+    inf.organisms = collectOrgs();
+    inf.crcl = m.querySelector('#inf-crcl').value === '' ? null : Number(m.querySelector('#inf-crcl').value);
+    inf.crrt = segValue(m, 'crrt') === '1';
+    m.querySelector('#abx-preview').innerHTML = antibioticFindingsHTML(inf);
+  };
+  renderAms();
+  refreshPreview();
+
   m.addEventListener('click', e => {
     const del = e.target.closest('[data-am-del]');
-    if (del) {
-      inf.antimicrobials.splice(Number(del.dataset.amDel), 1);
-      renderAms();
+    if (del) { inf.antimicrobials.splice(Number(del.dataset.amDel), 1); renderAms(); refreshPreview(); }
+  });
+  m.addEventListener('segchange', e => {
+    if (e.detail.name === 'gram') {
+      const g = C.GRAM_GUIDE.find(x => x.key === e.detail.value);
+      m.querySelector('#gram-hint').textContent = g ? g.hint : 'グラム染色の形態から起因菌を推定します。';
     }
+    if (['orgs', 'crrt'].includes(e.detail.name)) refreshPreview();
+  });
+  m.querySelector('#inf-crcl').addEventListener('input', refreshPreview);
+  m.querySelector('#inf-org-free').addEventListener('input', refreshPreview);
+  m.querySelector('#am-name').addEventListener('input', e => {
+    const k = C.findAntimicrobial(e.target.value);
+    m.querySelector('#abx-hint').textContent = k ? `${k.jp}・${k.cls}：${k.note}` : '';
   });
   m.querySelector('#am-add').addEventListener('click', () => {
     const name = m.querySelector('#am-name').value.trim();
     if (!name) return toast('薬剤名を入力してください');
+    const k = C.findAntimicrobial(name);
     inf.antimicrobials.push({
-      name,
+      name: k ? k.name : name,
       start_date: m.querySelector('#am-start').value || todayStr(),
       spectrum: segValue(m, 'am-spec') || 'broad',
       end_date: null,
     });
     m.querySelector('#am-name').value = '';
+    m.querySelector('#abx-hint').textContent = '';
     renderAms();
+    refreshPreview();
   });
   m.querySelector('#inf-save').addEventListener('click', async () => {
     inf.source = m.querySelector('#inf-source').value.trim();
-    inf.organisms = m.querySelector('#inf-org').value.split(',').map(s => s.trim()).filter(Boolean);
+    inf.gram_stain = segValue(m, 'gram') || '';
+    inf.organisms = collectOrgs();
     inf.culture_status = segValue(m, 'culture');
     inf.deescalation = segValue(m, 'deesc');
+    inf.crcl = m.querySelector('#inf-crcl').value === '' ? null : Number(m.querySelector('#inf-crcl').value);
+    inf.crrt = segValue(m, 'crrt') === '1';
     for (const key of ['cvc', 'foley', 'vent']) {
       inf.devices[key] = {
         active: segValue(m, 'dev-' + key) === '1',
@@ -938,25 +1315,25 @@ async function renderSummary(shiftId) {
 
   shell(`
     <section class="card">
-      <h2>シフトサマリ ${esc(shift.date)} ${open ? '<span class="chip chip-open">進行中（プレビュー）</span>' : '<span class="chip chip-muted">確定</span>'}</h2>
+      <h2>シフト集計 ${esc(shift.date)} ${open ? '<span class="chip chip-open">進行中（プレビュー）</span>' : '<span class="chip chip-muted">確定</span>'}</h2>
       <div class="stat-row">
         <div class="stat"><div class="stat-label">総介入数</div><div class="stat-value">${summary.total_interventions}</div></div>
-        <div class="stat"><div class="stat-label">proactive 的中率</div>
+        <div class="stat"><div class="stat-label">先回り的中率</div>
           <div class="stat-value">${summary.precision == null ? '—' : Math.round(summary.precision * 100) + '%'}</div>
-          <div class="stat-sub">フリップ ${summary.flip_hit}/${summary.flip_total}</div></div>
-        <div class="stat"><div class="stat-label">取り逃し（現場発・非proactive）</div><div class="stat-value">${summary.misses}</div></div>
+          <div class="stat-sub">先回り化 ${summary.flip_hit}/${summary.flip_total} が的中</div></div>
+        <div class="stat"><div class="stat-label">取り逃し（現場が先・待機のまま）</div><div class="stat-value">${summary.misses}</div></div>
         <div class="stat"><div class="stat-label">ラウンド実施</div><div class="stat-value">${rounds.length}回</div>
           <div class="stat-sub">${rounds.length > 1 ? '間隔 ' + rounds.slice(1).map((r, i) => L.fmtDuration(L.roundInterval(rounds[i], r))).join(' / ') : '—'}</div></div>
       </div>
       <div class="mini-tables">
-        ${tbl('trigger source 内訳', summary.by_source, SOURCE_LABEL)}
-        ${tbl('category 内訳', summary.by_category)}
+        ${tbl('誰が先に気づいたか', summary.by_source, SOURCE_LABEL)}
+        ${tbl('区分別', summary.by_category, { proactive: '先回り', reactive: '待機からの反応' })}
         ${tbl('拠点別', summary.by_facility)}
         ${tbl('ラウンド別', summary.by_round)}
         ${tbl('領域別', summary.by_domain, DOMAIN_LABEL)}
       </div>
       <div class="btn-row">
-        <button class="btn" id="back-roster">← Roster</button>
+        <button class="btn" id="back-roster">← 患者リスト</button>
         ${open ? '<button class="btn btn-danger" id="close-shift">シフトを終了（確定）</button>' : ''}
       </div>
     </section>`, 'summary');
@@ -1027,19 +1404,19 @@ async function renderDashboard() {
 
   shell(`
     <section class="card">
-      <h2>蓄積ダッシュボード <span class="muted">確定シフト ${closed.length}件</span></h2>
-      <h3>proactive precision の推移</h3>
+      <h2>蓄積分析 <span class="muted">確定シフト ${closed.length}件</span></h2>
+      <h3>先回り的中率の推移（シフトを重ねるほど上がるか）</h3>
       ${lineChart(points)}
     </section>
     <section class="card">
-      <h3>条件別 precision（race フリップ分解）</h3>
+      <h3>条件別の的中率（先回り化した患者の分解）</h3>
       <div class="mini-tables">
         ${precTable('拠点', byFacility)}
         ${precTable('時間帯', byTime)}
         ${precTable('鎮静', bySed)}
         ${precTable('選定理由タグ', byTag)}
       </div>
-      <h3>eRN 先着率（eRN発 / eRN発＋現場発）</h3>
+      <h3>eRN 先着率（eRNが先 / eRNが先＋現場が先）</h3>
       <div class="mini-tables">
         ${[['拠点', winFacility], ['時間帯', winTime]].map(([t, rows]) => `
           <div class="mini-table"><h4>${t}</h4>
@@ -1062,7 +1439,7 @@ async function renderDashboard() {
         <button class="btn" id="exp-json">JSON 全体</button>
         <button class="btn" id="exp-pr">CSV: PatientRound</button>
         <button class="btn" id="exp-iv">CSV: 介入</button>
-        <button class="btn" id="exp-rf">CSV: race フリップ</button>
+        <button class="btn" id="exp-rf">CSV: 役割切替</button>
       </div>
     </section>`, 'dashboard');
 
@@ -1086,7 +1463,16 @@ function exportPatientRounds(rows) {
     { label: 'patient_id', get: r => r.patient_id },
     { label: 'round_number', get: r => r.round_number },
     { label: 'at', get: r => r.at },
-    { label: 'ews', get: r => r.ews },
+    { label: 'news2_or_score', get: r => r.ews },
+    { label: 'resp_rate', get: r => r.vitals?.resp_rate ?? '' },
+    { label: 'spo2', get: r => r.vitals?.spo2 ?? '' },
+    { label: 'on_oxygen', get: r => r.vitals?.on_oxygen ?? '' },
+    { label: 'sbp', get: r => r.vitals?.sbp ?? '' },
+    { label: 'pulse', get: r => r.vitals?.pulse ?? '' },
+    { label: 'temp', get: r => r.vitals?.temp ?? '' },
+    { label: 'consciousness', get: r => r.vitals?.consciousness ?? '' },
+    { label: 'acuity', get: r => r.acuity ?? '' },
+    { label: 'drs', get: r => r.drs ?? '' },
     { label: 'race_layer', get: r => r.race_layer },
     { label: 'entry_status', get: r => r.entry_status },
     { label: 'device_warn', get: r => r.infection_trigger_snapshot?.device_warn ?? '' },

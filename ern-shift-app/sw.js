@@ -1,5 +1,5 @@
 // Service Worker: フルオフライン化（cache-first）
-const CACHE = 'ern-rounds-v1';
+const CACHE = 'ern-rounds-v2';
 const ASSETS = [
   './',
   './index.html',
@@ -10,6 +10,7 @@ const ASSETS = [
   './js/ui.js',
   './js/db.js',
   './js/logic.js',
+  './js/clinical.js',
 ];
 
 self.addEventListener('install', e => {
