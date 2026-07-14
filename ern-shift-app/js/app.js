@@ -420,7 +420,45 @@ async function renderRoster(shiftId) {
     $$('.pc-card [data-detail]').forEach(btn => btn.addEventListener('click', () => {
       nav(`#/patient/${btn.closest('.pc-card').dataset.pid}`);
     }));
+    // ✎ 大きく手書き（Scribble を広いキャンバスで）
+    $$('.pc-card [data-scribble]').forEach(btn => btn.addEventListener('click', () => {
+      const card = btn.closest('.pc-card');
+      const pid = card.dataset.pid;
+      const p = patients.find(x => x.id === pid);
+      if (!p) return;
+      const field = btn.dataset.sfield;
+      const idx = btn.dataset.sidx != null ? Number(btn.dataset.sidx) : null;
+      const cur = field === 'line' ? ((p.round_lines || [])[idx] || '') : (p[field] || '');
+      const titles = { memo: '申し送り・備考', shift_summary: '勤務サマリ', line: `R${idx + 1} 1行サマリー` };
+      openScribbleSheet(`${p.bed_label}　${titles[field] || ''}`, cur, async (val) => {
+        if (field === 'line') { p.round_lines = p.round_lines || []; p.round_lines[idx] = val; }
+        else p[field] = val;
+        await db.put('patients', p);
+        render();
+      });
+    }));
   }
+}
+
+// 大きな手書きキャンバス（Apple Pencil の Scribble を広い面で使う）
+function openScribbleSheet(title, value, onSave) {
+  const m = openModal(`
+    <div class="modal-head">✎ ${esc(title)}</div>
+    <div class="modal-body">
+      <textarea class="scribble-canvas" placeholder="Apple Pencil でここに直接手書き（Scribble）／キーボード入力も可">${esc(value || '')}</textarea>
+      <p class="hint">Scribble は iPad の「設定 → Apple Pencil → 書いて入力」をオンにすると使えます。この欄に直接書くと文字に変換されます。</p>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" data-close>キャンセル</button>
+      <button class="btn btn-primary" id="sc-save">保存</button>
+    </div>`);
+  const ta = m.querySelector('.scribble-canvas');
+  setTimeout(() => ta.focus(), 50);
+  m.querySelector('#sc-save').addEventListener('click', () => {
+    const v = ta.value.trim();
+    m.close();
+    onSave(v);
+  });
 }
 
 // カードビュー: 紙運用に近い自由記載カード（ラウンド1行サマリ×6＋備考＋Summary）
@@ -429,12 +467,15 @@ function rosterCard(r, rounds, readonly) {
   const lines = p.round_lines || [];
   const scoreLabel = (r.lastPR && r.lastPR.vitals && Object.keys(r.lastPR.vitals).length) ? 'NEWS2' : 'スコア';
   const ro = readonly ? 'readonly' : '';
+  const penBtn = (field, idx) => ro ? '' :
+    `<button class="btn btn-icon pen-btn" data-scribble data-sfield="${field}"${idx != null ? ` data-sidx="${idx}"` : ''} title="大きく手書き（Scribble）">✎</button>`;
   const lineRows = Array.from({ length: 6 }, (_, i) => {
     const rd = rounds[i];
     const label = rd ? `R${rd.round_number} ${fmtTime(rd.started_at)}` : `R${i + 1}`;
     return `<div class="pc-line">
       <span class="pc-rlabel">${label}</span>
-      <input type="text" class="pc-lineinput" data-field="line" data-idx="${i}" value="${esc(lines[i] || '')}" placeholder="1行サマリー" ${ro}>
+      <input type="text" class="pc-lineinput" data-field="line" data-idx="${i}" value="${esc(lines[i] || '')}" placeholder="1行サマリー（Scribble可）" ${ro}>
+      ${penBtn('line', i)}
     </div>`;
   }).join('');
   return `
@@ -446,9 +487,16 @@ function rosterCard(r, rounds, readonly) {
       <span class="pc-score muted">${scoreLabel} ${r.ews}</span>
       <button class="btn btn-icon" data-detail title="詳細（NEWS2・呼吸器・感染）">ⓘ</button>
     </div>
-    <textarea class="pc-notes scribble" data-field="memo" placeholder="申し送り・備考（スクリブル可）" ${ro}>${esc(p.memo || '')}</textarea>
+    <div class="pc-notewrap">
+      <textarea class="pc-notes scribble" data-field="memo" placeholder="申し送り・備考（Apple Pencil で直接手書き＝Scribble 可）" ${ro}>${esc(p.memo || '')}</textarea>
+      ${penBtn('memo')}
+    </div>
     <div class="pc-lines">${lineRows}</div>
-    <input type="text" class="pc-summary" data-field="shift_summary" value="${esc(p.shift_summary || '')}" placeholder="Summary（勤務サマリ）" ${ro}>
+    <div class="pc-line">
+      <span class="pc-rlabel">Summary</span>
+      <input type="text" class="pc-summary" data-field="shift_summary" value="${esc(p.shift_summary || '')}" placeholder="勤務サマリ（Scribble可）" ${ro}>
+      ${penBtn('shift_summary')}
+    </div>
   </div>`;
 }
 
