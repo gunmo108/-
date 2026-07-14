@@ -48,7 +48,15 @@ async function boot() {
   window.addEventListener('hashchange', render);
   render();
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js').catch(() => {});
+    const hadController = !!navigator.serviceWorker.controller; // 初回インストールか更新かを判別
+    navigator.serviceWorker.register('./sw.js').then(reg => reg.update()).catch(() => {});
+    // 既存SWがある状態で新SWが有効化されたら一度だけ自動リロード（初回installでは reload しない）
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!hadController || refreshing) return;
+      refreshing = true;
+      location.reload();
+    });
   }
 }
 
