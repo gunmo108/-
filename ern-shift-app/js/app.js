@@ -275,6 +275,7 @@ async function renderRoster(shiftId) {
   const filter = sessionStorage.getItem('ern.rosterFilter') || 'all';
   const sortMode = sessionStorage.getItem('ern.rosterSort') || 'bed';
   const rosterView = sessionStorage.getItem('ern.rosterView') || 'standard'; // standard|dx|infection|memo
+  const layout = sessionStorage.getItem('ern.rosterLayout') || 'list'; // list|card
 
   const rows = patients.map(p => patientRowData(p, patientRounds, infections.get(p.id), round));
   // 既定は病床順（KRC303→…→SMM104）。トグルで NEWS 順（高い順）。ピン留めは常に先頭。
@@ -303,14 +304,19 @@ async function renderRoster(shiftId) {
       </div>
       <div class="round-strip">${roundChips || '<span class="muted">ラウンド未開始</span>'}</div>
       <div class="roster-tools">
+        <div class="seg" data-seg="layout">
+          <button type="button" class="seg-btn ${layout === 'list' ? 'on' : ''}" data-value="list">リスト</button>
+          <button type="button" class="seg-btn ${layout === 'card' ? 'on' : ''}" data-value="card">カード</button>
+        </div>
         <div class="seg" data-seg="sort">
           <button type="button" class="seg-btn ${sortMode === 'bed' ? 'on' : ''}" data-value="bed">病床順</button>
           <button type="button" class="seg-btn ${sortMode === 'news' ? 'on' : ''}" data-value="news">NEWS順</button>
         </div>
-        <div class="seg seg-wrap" data-seg="rview">
+        ${layout === 'list' ? `<div class="seg seg-wrap" data-seg="rview">
           ${[['standard', '標準'], ['dx', '診断サマリ'], ['infection', '感染症治療'], ['memo', 'メモ']]
             .map(([v, l]) => `<button type="button" class="seg-btn ${rosterView === v ? 'on' : ''}" data-value="${v}">${l}</button>`).join('')}
-        </div>
+        </div>` : ''}
+        <button class="btn btn-sm" id="open-calc">🧮 計算ツール</button>
         <button class="btn btn-sm" id="to-handoff">📋 申し送り一覧</button>
       </div>
       ${readonly ? '' : `
@@ -332,8 +338,11 @@ async function renderRoster(shiftId) {
       </div>`}
     </section>
 
-    <section class="roster">
-      ${shown.length ? shown.map(r => rosterRow(r, round, readonly, rosterView)).join('')
+    <section class="${layout === 'card' ? 'roster-cards' : 'roster'}">
+      ${shown.length
+        ? (layout === 'card'
+          ? shown.map(r => rosterCard(r, rounds, readonly)).join('')
+          : shown.map(r => rosterRow(r, round, readonly, rosterView)).join(''))
         : `<p class="empty">${patients.length ? '未確認の患者はありません' : '患者を追加してください'}</p>`}
     </section>
 
@@ -345,19 +354,13 @@ async function renderRoster(shiftId) {
     </div>`}
   `, 'roster');
 
-  // events（並び替え・診断サマリ表示は読み取り専用でも有効）
+  // events（並び替え・レイアウト・計算ツールは読み取り専用でも有効）
   $('#to-handoff')?.addEventListener('click', () => nav(`#/handoff/${shiftId}`));
+  $('#open-calc')?.addEventListener('click', () => openCalcModal());
   $('#view').addEventListener('segchange', e => {
-    if (e.detail.name === 'sort') {
-      sessionStorage.setItem('ern.rosterSort', e.detail.value);
-      render();
-    }
-    if (e.detail.name === 'rview') {
-      sessionStorage.setItem('ern.rosterView', e.detail.value);
-      render();
-    }
-    if (e.detail.name === 'filter') {
-      sessionStorage.setItem('ern.rosterFilter', e.detail.value);
+    const map = { sort: 'ern.rosterSort', rview: 'ern.rosterView', filter: 'ern.rosterFilter', layout: 'ern.rosterLayout' };
+    if (map[e.detail.name]) {
+      sessionStorage.setItem(map[e.detail.name], e.detail.value);
       render();
     }
   });
@@ -369,6 +372,7 @@ async function renderRoster(shiftId) {
     $('#end-round')?.addEventListener('click', () => endRound(bundle, round, rows));
   }
 
+  // リスト行のタップ操作
   $$('.p-row').forEach(el => {
     const pid = el.dataset.pid;
     const rd = rows.find(r => r.patient.id === pid);
@@ -382,6 +386,62 @@ async function renderRoster(shiftId) {
       nav(`#/patient/${pid}`);
     });
   });
+
+  // カードの自由記載（スクリブル）を blur で保存
+  if (layout === 'card' && !readonly) {
+    $$('.pc-card [data-field]').forEach(inp => {
+      inp.addEventListener('change', async () => {
+        const pid = inp.closest('.pc-card').dataset.pid;
+        const p = patients.find(x => x.id === pid);
+        if (!p) return;
+        const f = inp.dataset.field;
+        if (f === 'line') {
+          p.round_lines = p.round_lines || [];
+          p.round_lines[Number(inp.dataset.idx)] = inp.value;
+        } else {
+          p[f] = inp.value;
+        }
+        await db.put('patients', p);
+      });
+    });
+    $$('.pc-card [data-race]').forEach(btn => btn.addEventListener('click', () => {
+      const pid = btn.closest('.pc-card').dataset.pid;
+      const rd = rows.find(r => r.patient.id === pid);
+      toggleRace(bundle, round, rd.patient);
+    }));
+    $$('.pc-card [data-detail]').forEach(btn => btn.addEventListener('click', () => {
+      nav(`#/patient/${btn.closest('.pc-card').dataset.pid}`);
+    }));
+  }
+}
+
+// カードビュー: 紙運用に近い自由記載カード（ラウンド1行サマリ×6＋備考＋Summary）
+function rosterCard(r, rounds, readonly) {
+  const p = r.patient;
+  const lines = p.round_lines || [];
+  const scoreLabel = (r.lastPR && r.lastPR.vitals && Object.keys(r.lastPR.vitals).length) ? 'NEWS2' : 'スコア';
+  const ro = readonly ? 'readonly' : '';
+  const lineRows = Array.from({ length: 6 }, (_, i) => {
+    const rd = rounds[i];
+    const label = rd ? `R${rd.round_number} ${fmtTime(rd.started_at)}` : `R${i + 1}`;
+    return `<div class="pc-line">
+      <span class="pc-rlabel">${label}</span>
+      <input type="text" class="pc-lineinput" data-field="line" data-idx="${i}" value="${esc(lines[i] || '')}" placeholder="1行サマリー" ${ro}>
+    </div>`;
+  }).join('');
+  return `
+  <div class="pc-card ${p.race_layer === 'proactive' ? 'proactive' : ''}" data-pid="${p.id}">
+    <div class="pc-head">
+      <span class="fac fac-${esc(p.facility)}">${esc(p.facility)}</span>
+      <span class="pc-bed">${p.pinned ? '📌 ' : ''}${esc(p.bed_label)}</span>
+      <button class="race-toggle ${p.race_layer}" data-race title="監視役割を切替">${ROLE[p.race_layer].short}</button>
+      <span class="pc-score muted">${scoreLabel} ${r.ews}</span>
+      <button class="btn btn-icon" data-detail title="詳細（NEWS2・呼吸器・感染）">ⓘ</button>
+    </div>
+    <textarea class="pc-notes scribble" data-field="memo" placeholder="申し送り・備考（スクリブル可）" ${ro}>${esc(p.memo || '')}</textarea>
+    <div class="pc-lines">${lineRows}</div>
+    <input type="text" class="pc-summary" data-field="shift_summary" value="${esc(p.shift_summary || '')}" placeholder="Summary（勤務サマリ）" ${ro}>
+  </div>`;
 }
 
 function problemChips(problems) {
@@ -948,6 +1008,7 @@ async function renderPatient(patientId) {
         <button class="btn" id="back">← 患者リスト</button>
         <h2>${esc(patient.bed_label)} <span class="muted">${esc(patient.anon_id)} / ${esc(patient.facility)} / ${patient.age != null ? patient.age + '歳' : '年齢-'} / ${patient.sex === 'female' ? '女性' : '男性'}</span></h2>
         <div class="detail-actions">
+          <button class="btn" id="calc-pt">🧮 計算</button>
           ${readonly ? '' : `
           <button class="btn" id="pin">${patient.pinned ? '📌 ピン解除' : '📌 ピン留め'}</button>
           <button class="btn" id="edit-pt">編集</button>`}
@@ -1045,6 +1106,9 @@ async function renderPatient(patientId) {
     </section>`, 'roster');
 
   $('#back').addEventListener('click', () => nav(`#/roster/${shift.id}`));
+  $('#calc-pt')?.addEventListener('click', () => openCalcModal({
+    height_cm: patient.height_cm, weight_kg: patient.weight_kg, age: patient.age, sex: patient.sex,
+  }));
   if (!readonly) {
     $('#pin')?.addEventListener('click', async () => {
       patient.pinned = !patient.pinned;
@@ -1160,6 +1224,88 @@ function openVentilatorModal(patient, lastVitals) {
     render();
   });
 }
+
+// ---- 付録: 計算ツール（ガンマ計算 / IBW / VTe / CrCl） ------------------
+
+function openCalcModal(prefill = {}) {
+  const val = v => (v == null || v === '' ? '' : v);
+  const m = openModal(`
+    <div class="modal-head">計算ツール（付録）</div>
+    <div class="modal-body form">
+      <fieldset class="vfs"><legend>共通パラメータ</legend>
+        <div class="form-row">
+          <label>身長 (cm) <input type="number" id="cc-height" step="0.1" inputmode="decimal" value="${val(prefill.height_cm)}"></label>
+          <label>体重 (kg) <input type="number" id="cc-weight" step="0.1" inputmode="decimal" value="${val(prefill.weight_kg)}"></label>
+        </div>
+        <div class="form-row">
+          <label>年齢 <input type="number" id="cc-age" inputmode="numeric" value="${val(prefill.age)}"></label>
+          <label>性別 ${segmented('ccsex', [{ value: 'male', label: '男性' }, { value: 'female', label: '女性' }], prefill.sex || 'male')}</label>
+        </div>
+      </fieldset>
+
+      <fieldset class="vfs"><legend>ガンマ計算（γ ↔ mL/h）</legend>
+        <div class="form-row">
+          <label>薬剤量 (mg) <input type="number" id="cc-drug" step="0.01" inputmode="decimal" placeholder="例: 3"></label>
+          <label>溶液量 (mL) <input type="number" id="cc-sol" step="0.1" inputmode="decimal" placeholder="例: 50"></label>
+        </div>
+        <div class="form-row">
+          <label>γ (µg/kg/min) <input type="number" id="cc-gamma" step="0.01" inputmode="decimal" placeholder="入力→mL/h算出"></label>
+          <label>流量 (mL/h) <input type="number" id="cc-rate" step="0.1" inputmode="decimal" placeholder="入力→γ算出"></label>
+        </div>
+        <div class="calc-out" id="cc-gamma-out"></div>
+      </fieldset>
+
+      <fieldset class="vfs"><legend>IBW（理想体重）／ VTe（一回換気量）</legend>
+        <div class="calc-out" id="cc-ibw-out"></div>
+      </fieldset>
+
+      <fieldset class="vfs"><legend>CrCl（Cockcroft-Gault）</legend>
+        <label>血清クレアチニン (mg/dL) <input type="number" id="cc-scr" step="0.01" inputmode="decimal" placeholder="例: 1.0"></label>
+        <div class="calc-out" id="cc-crcl-out"></div>
+      </fieldset>
+      <p class="disclaimer">${esc(C.DISCLAIMER)}</p>
+    </div>
+    <div class="modal-actions"><button class="btn btn-primary" data-close>閉じる</button></div>`);
+
+  const numOf = id => { const v = m.querySelector(id).value; return v === '' ? null : Number(v); };
+
+  const recalc = (source) => {
+    const height = numOf('#cc-height'), weight = numOf('#cc-weight'), age = numOf('#cc-age');
+    const sex = segValue(m, 'ccsex') || 'male';
+    const conc = C.concentration(numOf('#cc-drug'), numOf('#cc-sol'));
+
+    // ガンマ ↔ 流量（編集された側から他方を算出）
+    const gEl = m.querySelector('#cc-gamma'), rEl = m.querySelector('#cc-rate');
+    if (conc && weight) {
+      if (source === 'gamma' && gEl.value !== '') rEl.value = C.gammaToRate(Number(gEl.value), conc, weight) ?? '';
+      else if (source === 'rate' && rEl.value !== '') gEl.value = C.rateToGamma(Number(rEl.value), conc, weight) ?? '';
+    }
+    m.querySelector('#cc-gamma-out').innerHTML = conc
+      ? `濃度 ${round3(conc)} mg/mL${weight ? '' : '（体重を入力すると γ↔mL/h を計算）'}`
+      : '薬剤量・溶液量を入力すると濃度を計算';
+
+    // IBW / VTe
+    const ibw = height ? C.idealBodyWeight(height, sex) : null;
+    m.querySelector('#cc-ibw-out').innerHTML = ibw
+      ? `IBW <b>${Math.round(ibw * 10) / 10} kg</b>　目標VT(6mL/kg) <b>${Math.round(6 * ibw)} mL</b>　肺保護域(4–8) ${Math.round(4 * ibw)}–${Math.round(8 * ibw)} mL`
+      : '身長・性別を入力するとIBW/目標VTを計算';
+
+    // CrCl
+    const crcl = C.crClCockcroft(age, weight, numOf('#cc-scr'), sex);
+    m.querySelector('#cc-crcl-out').innerHTML = crcl != null
+      ? `CrCl <b>${crcl} mL/分</b>${crcl < 50 ? '　<span class="calc-warn">腎機能低下：用量調整を検討</span>' : ''}`
+      : '年齢・体重・Cr を入力するとCrClを計算';
+  };
+
+  m.querySelectorAll('input').forEach(inp => {
+    const src = inp.id === 'cc-gamma' ? 'gamma' : inp.id === 'cc-rate' ? 'rate' : 'other';
+    inp.addEventListener('input', () => recalc(src));
+  });
+  m.addEventListener('segchange', () => recalc('other'));
+  recalc('other');
+}
+
+function round3(x) { return x == null ? null : Math.round(x * 1000) / 1000; }
 
 // ---- 感染: 抗菌薬適正判定の表示 ----------------------------------------
 

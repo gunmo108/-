@@ -143,6 +143,26 @@ test('抗菌薬適正: 嫌気カバー重複', () => {
   assert.ok(f.some(x => x.kind === 'redundant'));
 });
 
+test('ガンマ計算: γ↔mL/h 双方向（濃度 mg/mL）', () => {
+  // ノルアドレナリン 3mg/50mL = 0.06 mg/mL, 体重50kg
+  const conc = C.concentration(3, 50);
+  assert.equal(Math.round(conc * 1000) / 1000, 0.06);
+  // 0.1γ → 流量
+  const rate = C.gammaToRate(0.1, conc, 50);
+  assert.equal(rate, 5);          // 0.1*50*60/(0.06*1000)=5 mL/h
+  // 逆算: 5 mL/h → γ
+  assert.equal(C.rateToGamma(5, conc, 50), 0.1);
+  // 未入力は null
+  assert.equal(C.gammaToRate(null, conc, 50), null);
+});
+
+test('CrCl: Cockcroft-Gault（女性は×0.85）', () => {
+  // 60歳・60kg・Scr 1.0 男性 = (140-60)*60/(72*1)=66.7
+  assert.equal(C.crClCockcroft(60, 60, 1.0, 'male'), 66.7);
+  assert.equal(C.crClCockcroft(60, 60, 1.0, 'female'), 56.7); // *0.85
+  assert.equal(C.crClCockcroft(0, 60, 1, 'male'), null);
+});
+
 test('終了した抗菌薬(end_date)は評価対象外', () => {
   const f = C.assessAntibiotics({
     antimicrobials: [{ name: 'CTRX', end_date: '2026-07-01' }],

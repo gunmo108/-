@@ -400,6 +400,40 @@ export function assessAntibiotics({ antimicrobials = [], organisms = [], renal =
 }
 
 // ============================================================
+// 付録: ベッドサイド計算ツール
+// ============================================================
+
+// 濃度 (mg/mL) = 薬剤量(mg) / 溶液量(mL)
+export function concentration(drugMg, solutionMl) {
+  if (!drugMg || !solutionMl) return null;
+  return drugMg / solutionMl;
+}
+
+// γ (µg/kg/min) → 流量 (mL/h)
+export function gammaToRate(gamma, concMgPerMl, weightKg) {
+  if (gamma == null || !concMgPerMl || !weightKg) return null;
+  const ugPerMin = gamma * weightKg;            // µg/min
+  const mlH = ugPerMin * 60 / (concMgPerMl * 1000);
+  return round2(mlH);
+}
+
+// 流量 (mL/h) → γ (µg/kg/min)
+export function rateToGamma(rateMlH, concMgPerMl, weightKg) {
+  if (rateMlH == null || !concMgPerMl || !weightKg) return null;
+  const ugPerMin = rateMlH * concMgPerMl * 1000 / 60;
+  return round2(ugPerMin / weightKg);
+}
+
+// クレアチニンクリアランス（Cockcroft-Gault, mL/分）
+// scr: 血清クレアチニン mg/dL
+export function crClCockcroft(age, weightKg, scr, sex) {
+  if (!age || !weightKg || !scr) return null;
+  let v = (140 - age) * weightKg / (72 * scr);
+  if (sex === 'female') v *= 0.85;
+  return round1(v);
+}
+
+// ============================================================
 // 補助
 // ============================================================
 function round1(x) { return x == null ? null : Math.round(x * 10) / 10; }

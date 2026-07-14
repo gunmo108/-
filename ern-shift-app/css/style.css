@@ -462,6 +462,26 @@ fieldset.vfs { padding: 10px 12px; }
 .am-jp { font-size: 11px; margin-left: 6px; }
 .am-note { cursor: help; margin-left: 4px; }
 
+/* ---- カードビュー（紙運用に近い自由記載） ---- */
+.roster-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; }
+.pc-card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+.pc-card.proactive { background: var(--row-proactive); border-color: color-mix(in srgb, var(--series-1) 40%, var(--border)); }
+.pc-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pc-bed { font-weight: 800; font-size: 15px; }
+.pc-score { margin-left: auto; font-size: 12px; font-variant-numeric: tabular-nums; }
+.pc-head .race-toggle { min-height: 32px; padding: 2px 10px; }
+.pc-notes { min-height: 72px; font-size: 16px; margin-top: 0; }
+.pc-lines { display: flex; flex-direction: column; gap: 3px; }
+.pc-line { display: flex; align-items: center; gap: 6px; }
+.pc-rlabel { flex-shrink: 0; width: 72px; font-size: 11px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
+.pc-lineinput { min-height: 34px !important; margin-top: 0 !important; font-size: 14px !important; padding: 4px 8px !important; }
+.pc-summary { min-height: 38px !important; margin-top: 0 !important; font-weight: 600; border-color: var(--accent) !important; }
+
+/* ---- 計算ツール ---- */
+.calc-out { font-size: 14px; margin-top: 6px; padding: 8px 10px; border-radius: 8px; background: color-mix(in srgb, var(--series-1) 8%, var(--surface-1)); line-height: 1.6; }
+.calc-out b { font-size: 16px; }
+.calc-warn { color: var(--critical); font-weight: 700; }
+
 /* ---- 申し送り一覧 / PDF ---- */
 .only-print { display: none; }
 .handoff-sheet { display: flex; flex-direction: column; gap: 10px; }
