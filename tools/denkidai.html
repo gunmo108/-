@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>電気代計算ツール|家電の消費電力から1日・1ヶ月・1年の電気代を計算【無料】</title>
+<meta name="description" content="エアコン・こたつ・ドライヤーなどの電気代を、消費電力(W)と使用時間から自動計算。1日・1週間・1ヶ月・1年分の電気代が一目でわかる無料ツール。主要家電のプリセット付き、スマホ対応。">
+<link rel="canonical" href="https://gunmo108.github.io/-/tools/denkidai.html">
+<meta property="og:type" content="website">
+<meta property="og:title" content="電気代計算ツール|家電の電気代を3秒で計算">
+<meta property="og:description" content="消費電力と使用時間を入れるだけ。1日・1ヶ月・1年の電気代がすぐわかる。">
+<meta property="og:url" content="https://gunmo108.github.io/-/tools/denkidai.html">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='80' font-size='80'>⚡</text></svg>">
+<!-- GA4: 計測を始めるときは下の2行のコメントを外し、G-XXXXXXXXXX を自分の測定IDに置き換える
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)};gtag('js',new Date());gtag('config','G-XXXXXXXXXX');</script>
+-->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "電気代計算ツール",
+  "url": "https://gunmo108.github.io/-/tools/denkidai.html",
+  "applicationCategory": "UtilityApplication",
+  "operatingSystem": "Any",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "JPY" },
+  "description": "家電の消費電力と使用時間から電気代を計算する無料ツール"
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "家電の消費電力(W)はどこで確認できますか?",
+      "acceptedAnswer": { "@type": "Answer", "text": "本体の背面や底面に貼られた銘板シール、または取扱説明書の仕様欄に「消費電力 ○○W」と記載されています。エアコンなど運転状況で変わる家電は、カタログの「期間消費電力量」も参考になります。" }
+    },
+    {
+      "@type": "Question",
+      "name": "電気代の単価はいくらで計算すればいいですか?",
+      "acceptedAnswer": { "@type": "Answer", "text": "全国家庭電気製品公正取引協議会が定める目安単価は1kWhあたり31円です(2022年改定)。正確に知りたい場合は、電気の検針票や契約プランの「電力量料金」を確認してください。" }
+    },
+    {
+      "@type": "Question",
+      "name": "待機電力も電気代がかかりますか?",
+      "acceptedAnswer": { "@type": "Answer", "text": "かかります。家庭の消費電力量のうち約5%が待機電力と言われています。長期間使わない家電はコンセントを抜くか、スイッチ付き電源タップの利用が有効です。" }
+    }
+  ]
+}
+</script>
+</head>
+<body>
+<header class="site-header"><div class="inner">
+  <a class="site-title" href="../index.html">くらしの<span>電卓</span></a>
+  <span class="site-tag">毎日の「いくら?」を3秒で解決</span>
+</div></header>
+
+<div class="wrap">
+<nav class="breadcrumb"><a href="../index.html">くらしの電卓</a> › 電気代計算</nav>
+<h1>⚡ 電気代計算ツール</h1>
+<p class="lead">家電の消費電力(W)と1日の使用時間を入れるだけで、1日・1週間・1ヶ月・1年分の電気代を自動計算します。よく使う家電のプリセットも用意しました。</p>
+
+<div class="tool">
+  <div class="field">
+    <label>よく使う家電から選ぶ <span class="hint">(タップすると消費電力が入ります)</span></label>
+    <div class="chips" id="presets"></div>
+  </div>
+  <div class="grid2">
+    <div class="field">
+      <label for="watts">消費電力(W)</label>
+      <input type="number" id="watts" inputmode="decimal" placeholder="例: 600" min="0">
+    </div>
+    <div class="field">
+      <label for="hours">1日の使用時間(時間)</label>
+      <input type="number" id="hours" inputmode="decimal" placeholder="例: 8" min="0" max="24" step="0.5">
+    </div>
+  </div>
+  <div class="field">
+    <label for="unit">電気代単価(円/kWh) <span class="hint">未入力なら目安単価31円で計算</span></label>
+    <input type="number" id="unit" inputmode="decimal" placeholder="31" min="0" step="0.1">
+  </div>
+  <button class="btn" id="calc">電気代を計算する</button>
+  <div class="result" id="result"></div>
+</div>
+
+<div class="ad-slot"><!-- AdSense広告コード貼り付け位置(記事上) --></div>
+
+<article>
+<h2>電気代の計算方法</h2>
+<p>家電の電気代は、次の式で計算できます。</p>
+<p><strong>電気代 = 消費電力(kW) × 使用時間(h) × 電気代単価(円/kWh)</strong></p>
+<p>消費電力はワット(W)表記が一般的なので、1000で割ってキロワット(kW)に直してから計算します。たとえば消費電力600Wのエアコンを1日8時間使う場合、0.6kW × 8h × 31円 = <strong>1日あたり約149円</strong>。1ヶ月(30日)ならおよそ4,460円になります。</p>
+<p>電気代単価は、公益社団法人 全国家庭電気製品公正取引協議会が定める目安単価「<strong>1kWhあたり31円</strong>」(2022年7月改定)を初期値にしています。実際の単価は契約している電力会社・プランによって異なるので、検針票(電気ご使用量のお知らせ)の「電力量料金」を確認して入力すると、より正確に計算できます。</p>
+
+<h2>主な家電の消費電力の目安</h2>
+<div class="table-scroll">
+<table>
+  <tr><th>家電</th><th>消費電力の目安</th><th>1時間あたりの電気代(31円/kWh)</th></tr>
+  <tr><td>エアコン(冷房6畳用)</td><td>約400〜600W</td><td>約12〜19円</td></tr>
+  <tr><td>エアコン(暖房6畳用)</td><td>約500〜700W</td><td>約16〜22円</td></tr>
+  <tr><td>こたつ(弱〜強)</td><td>約80〜200W</td><td>約2〜6円</td></tr>
+  <tr><td>電気毛布</td><td>約30〜60W</td><td>約1〜2円</td></tr>
+  <tr><td>セラミックファンヒーター</td><td>約1200W</td><td>約37円</td></tr>
+  <tr><td>ドライヤー</td><td>約1200W</td><td>約37円</td></tr>
+  <tr><td>テレビ(40型液晶)</td><td>約80〜100W</td><td>約2〜3円</td></tr>
+  <tr><td>冷蔵庫(400Lクラス)</td><td>年間250〜300kWh</td><td>月あたり約650〜780円</td></tr>
+  <tr><td>洗濯乾燥機(乾燥時)</td><td>約1000〜1500W</td><td>約31〜47円</td></tr>
+  <tr><td>ノートパソコン</td><td>約20〜50W</td><td>約1〜2円</td></tr>
+</table>
+</div>
+<p>※ 実際の消費電力は機種・設定・環境で変わります。お手持ちの家電の正確な値は、本体の銘板シールか取扱説明書で確認してください。</p>
+
+<h2>電気代を下げる3つの視点</h2>
+<ol>
+  <li><strong>「高W×長時間」の家電から見直す</strong> — 電気代は消費電力×時間で決まるので、セラミックヒーターのような高出力家電の長時間使用が家計に最も効きます。エアコン+サーキュレーターや、こたつ・電気毛布への置き換えで大きく変わります。</li>
+  <li><strong>単価を下げる</strong> — 電力会社・プランの見直しは、使い方を変えずに電気代を下げられる唯一の方法です。検針票の単価をこのツールに入れて、プラン変更後の差額を試算してみてください。</li>
+  <li><strong>待機電力を減らす</strong> — 家庭の消費電力量の約5%は待機電力です。使っていない家電はスイッチ付き電源タップでオフにするだけでも積み重なります。</li>
+</ol>
+
+<h2>よくある質問</h2>
+<dl class="faq">
+  <dt>家電の消費電力(W)はどこで確認できますか?</dt>
+  <dd>本体の背面や底面の銘板シール、または取扱説明書の仕様欄に「消費電力 ○○W」と記載されています。</dd>
+  <dt>エアコンの電気代はこの計算どおりになりますか?</dt>
+  <dd>エアコンは設定温度に達すると消費電力が下がるため、実際は計算値より安くなることが多いです。定格消費電力での計算は「最大でこれくらい」の目安と考えてください。</dd>
+  <dt>アンペア(A)しか書いていない場合は?</dt>
+  <dd>「電圧(V)×電流(A)=消費電力(W)」で概算できます。家庭用コンセントは100Vなので、5Aなら約500Wです。</dd>
+</dl>
+</article>
+
+<div class="ad-slot"><!-- AdSense広告コード貼り付け位置(記事下) --></div>
+
+<div class="notice">関連ツール: <a href="tanka.html">どっちがお得?単価比較</a> / <a href="tsumitate.html">積立シミュレーター</a></div>
+<!-- affiliate-slot: 電力会社比較サービスのアフィリエイトリンクをここに(A8.net等と提携後) -->
+</div>
+
+<footer class="site-footer"><div class="inner">
+  <nav>
+    <a href="../index.html">ツール一覧</a>
+    <a href="../about.html">サイト概要</a>
+    <a href="../privacy.html">プライバシーポリシー</a>
+    <a href="../contact.html">お問い合わせ</a>
+  </nav>
+  <div>© 2026 くらしの電卓</div>
+</div></footer>
+
+<script src="../assets/tools.js"></script>
+<script>
+(function () {
+  const T = window.KurashiTools;
+  const $ = (id) => document.getElementById(id);
+
+  const PRESETS = [
+    ['エアコン(冷房)', 500], ['エアコン(暖房)', 600], ['こたつ', 150],
+    ['電気毛布', 50], ['ファンヒーター', 1200], ['ドライヤー', 1200],
+    ['テレビ', 90], ['ノートPC', 35],
+  ];
+  const box = $('presets');
+  PRESETS.forEach(([name, w]) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'chip'; b.textContent = name + ' ' + w + 'W';
+    b.addEventListener('click', () => { $('watts').value = w; calc(); });
+    box.appendChild(b);
+  });
+
+  function calc() {
+    const r = T.denkidai($('watts').value, $('hours').value, $('unit').value);
+    const el = $('result');
+    el.classList.add('show');
+    if (!r) {
+      el.innerHTML = '<span class="err">消費電力と使用時間を正しく入力してください(0以上の数値)。</span>';
+      return;
+    }
+    el.innerHTML =
+      '<div>1日あたり <span class="big">' + (Math.round(r.day * 10) / 10).toLocaleString('ja-JP') + '</span><span class="unit">円</span></div>' +
+      '<table>' +
+      '<tr><th>1週間</th><td>約' + Math.round(r.week).toLocaleString('ja-JP') + '円</td></tr>' +
+      '<tr><th>1ヶ月(30日)</th><td>約' + Math.round(r.month).toLocaleString('ja-JP') + '円</td></tr>' +
+      '<tr><th>1年(365日)</th><td>約' + Math.round(r.year).toLocaleString('ja-JP') + '円</td></tr>' +
+      '<tr><th>1日の使用電力量</th><td>' + (Math.round(r.kwhDay * 100) / 100) + ' kWh</td></tr>' +
+      '</table>';
+  }
+
+  $('calc').addEventListener('click', calc);
+  ['watts', 'hours', 'unit'].forEach((id) => {
+    $(id).addEventListener('input', () => { if ($('result').classList.contains('show')) calc(); });
+  });
+})();
+</script>
+</body>
+</html>

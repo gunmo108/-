@@ -1,110 +1,88 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>STEEL CHAIN ─鋼鉄連鎖─</title>
-<link rel="stylesheet" href="style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>くらしの電卓|電気代・割り勘・単価比較など毎日使える無料計算ツール集</title>
+<meta name="description" content="電気代の計算、スーパーでの単価比較、割引計算、割り勘、日数計算、積立シミュレーションまで。毎日の「いくら?」を3秒で解決する無料の計算ツール集です。登録不要・スマホ対応。">
+<link rel="canonical" href="https://gunmo108.github.io/-/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="くらしの電卓|毎日使える無料計算ツール集">
+<meta property="og:description" content="電気代・単価比較・割引・割り勘・日数・積立。毎日の「いくら?」を3秒で解決。">
+<meta property="og:url" content="https://gunmo108.github.io/-/">
+<link rel="stylesheet" href="assets/site.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='80' font-size='80'>🧮</text></svg>">
+<!-- GA4: 計測を始めるときは下の2行のコメントを外し、G-XXXXXXXXXX を自分の測定IDに置き換える
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)};gtag('js',new Date());gtag('config','G-XXXXXXXXXX');</script>
+-->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": "くらしの電卓",
+  "url": "https://gunmo108.github.io/-/",
+  "description": "毎日の暮らしで役立つ無料計算ツール集"
+}
+</script>
 </head>
 <body>
-<div id="app">
+<header class="site-header"><div class="inner">
+  <a class="site-title" href="./">くらしの<span>電卓</span></a>
+  <span class="site-tag">毎日の「いくら?」を3秒で解決</span>
+</div></header>
 
-  <!-- ===== タイトル ===== -->
-  <div id="screen-title" class="screen">
-    <div class="title-wrap">
-      <div class="title-sub">ROGUELIKE ROBO DECK-BUILDER</div>
-      <h1 class="title-logo">STEEL<span class="accent">CHAIN</span></h1>
-      <div class="title-jp">─ 鋼鉄連鎖 ─</div>
-      <p class="title-copy">パーツを繋げ、コンボを重ねろ。<br>倍率は ×2、×4、×8…… 上限 <span class="accent">×32</span>。</p>
-      <div class="title-btns">
-        <button class="btn big" onclick="startRun()">出 撃</button>
-        <button class="btn ghost" onclick="toggleHelp(true)">遊び方</button>
-      </div>
-      <div id="best-score" class="best-score"></div>
-    </div>
-  </div>
+<div class="wrap">
+<h1>くらしの電卓 — 毎日使える無料計算ツール集</h1>
+<p class="lead">電気代、スーパーでのお得な選び方、割り勘、日数計算まで。暮らしの中の「これっていくら?」「どっちが得?」をその場で解決する計算ツールを集めました。すべて無料・登録不要・スマホ対応です。</p>
 
-  <!-- ===== マップ ===== -->
-  <div id="screen-map" class="screen">
-    <div class="hud" id="map-hud"></div>
-    <div class="map-wrap">
-      <div id="map-track"></div>
-      <div class="map-main">
-        <h2 id="map-floor-title"></h2>
-        <div id="map-choices"></div>
-      </div>
-      <div id="map-robot" class="map-robot"></div>
-    </div>
-  </div>
+<div class="ad-slot"><!-- AdSense広告コード貼り付け位置(上部) --></div>
 
-  <!-- ===== 戦闘 ===== -->
-  <div id="screen-battle" class="screen">
-    <div class="battle-top">
-      <div id="b-floor" class="hud-chip"></div>
-      <div id="combo-meter"></div>
-      <div id="b-credits" class="hud-chip"></div>
-    </div>
-    <div class="arena">
-      <div class="side player-side">
-        <div class="robot-head-row"><span class="robot-name you">YOUR UNIT</span><span id="p-block" class="block-chip"></span></div>
-        <div id="p-robot"></div>
-      </div>
-      <div class="vs">VS</div>
-      <div class="side enemy-side">
-        <div class="robot-head-row"><span id="e-name" class="robot-name foe"></span><span id="e-block" class="block-chip"></span></div>
-        <div id="e-intent" class="intent"></div>
-        <div id="e-robot"></div>
-      </div>
-    </div>
-    <div class="battle-bottom">
-      <div class="pile-info">
-        <div id="b-deck" class="pile">山札 0</div>
-        <div id="b-discard" class="pile">捨札 0</div>
-      </div>
-      <div id="hand"></div>
-      <div class="turn-ctrl">
-        <div id="b-energy" class="energy"></div>
-        <button id="btn-endturn" class="btn end" onclick="endTurn()">ターン終了<span class="key">E</span></button>
-      </div>
-    </div>
-  </div>
+<h2>計算ツール一覧</h2>
+<ul class="tool-list">
+  <li><a href="tools/denkidai.html">
+    <div class="t-name">⚡ 電気代計算</div>
+    <div class="t-desc">エアコン・こたつ・ドライヤーなど、家電の電気代を消費電力と使用時間から計算。1日・1ヶ月・1年分がすぐわかる。</div>
+  </a></li>
+  <li><a href="tools/tanka.html">
+    <div class="t-name">🛒 どっちがお得?単価比較</div>
+    <div class="t-desc">「300gで398円」と「500gで598円」どっちが安い?容量違いの商品を単価で比較。買い物中にスマホでサッと。</div>
+  </a></li>
+  <li><a href="tools/waribiki.html">
+    <div class="t-name">🏷️ 割引計算(%オフ・ポイント還元)</div>
+    <div class="t-desc">「30%オフでいくら?」を一発計算。割引とポイント還元、どちらが得かの比較もできる。</div>
+  </a></li>
+  <li><a href="tools/warikan.html">
+    <div class="t-name">🍻 割り勘計算</div>
+    <div class="t-desc">合計金額と人数を入れるだけ。100円単位のキリのいい徴収額や、端数を幹事が持つパターンにも対応。</div>
+  </a></li>
+  <li><a href="tools/hidzuke.html">
+    <div class="t-name">📅 日数計算(日付の足し算・カウントダウン)</div>
+    <div class="t-desc">「今日から100日後は何月何日?」「記念日まであと何日?」を曜日付きで計算。</div>
+  </a></li>
+  <li><a href="tools/tsumitate.html">
+    <div class="t-name">💰 積立シミュレーター</div>
+    <div class="t-desc">毎月コツコツ積み立てたらいくらになる?複利計算で将来の資産額をシミュレーション。</div>
+  </a></li>
+</ul>
 
-  <!-- ===== 汎用パネル(報酬/ショップ/休憩/イベント/編成/勝敗) ===== -->
-  <div id="screen-panel" class="screen">
-    <div class="hud" id="panel-hud"></div>
-    <div id="panel-body" class="panel-body"></div>
-  </div>
+<h2>このサイトについて</h2>
+<p>「くらしの電卓」は、家計や日常のちょっとした計算を、アプリのインストールや会員登録なしでその場で済ませられることを目指した計算ツール集です。すべてのツールはブラウザの中だけで動作し、入力した内容がサーバーに送信されることはありません。</p>
+<p>電卓を取り出して式を組み立てるまでもない、でも暗算はしたくない——そんな「毎日の小さな計算」を積み重ねると、家計の見え方は意外と変わります。詳しくは<a href="about.html">サイト概要</a>をご覧ください。</p>
 
+<h2>おまけ:休憩時間に遊べるミニゲーム</h2>
+<p>当サイト製作者が開発したブラウザゲーム『<a href="game/index.html">STEEL CHAIN ─鋼鉄連鎖─</a>』も無料で遊べます。ロボットのパーツがそのままデッキになるローグライクカードゲームです。</p>
+
+<div class="ad-slot"><!-- AdSense広告コード貼り付け位置(下部) --></div>
 </div>
 
-<div id="fx-layer"></div>
-<div id="banner-layer"></div>
-
-<!-- ===== ヘルプ ===== -->
-<div id="help-modal" class="modal hidden" onclick="toggleHelp(false)">
-  <div class="modal-box" onclick="event.stopPropagation()">
-    <h2>遊び方</h2>
-    <h3>■ ロボット = デッキ</h3>
-    <p>機体は <b>頭部 / 右腕 / 左腕 / 脚部</b> の4パーツ構成。装備したパーツが持つカードが、そのまま戦闘デッキになる。パーツを集めて換装することがデッキ構築だ。</p>
-    <h3>■ 部位破壊</h3>
-    <p>パーツにはそれぞれHPがある。破壊されたパーツのカードはデッキから消滅。<b>頭部を破壊されたら敗北</b>。逆に敵の頭部(コア)を破壊すれば勝利。腕を先に折って無力化するか、頭部を狙って速攻するかは君次第。</p>
-    <h3>■ コンボ(これが本体)</h3>
-    <p>カードには <span class="tag shoot">射撃</span> <span class="tag melee">格闘</span> <span class="tag support">支援</span> の属性がある。<b>同じ属性を連続で使うたびにダメージ・ブロック・修理量が倍々</b>になる。<br>1枚目 ×1 → 2枚目 <b>×2</b> → ×4 → ×8 → <b>×16</b>(特定頭部で×32)。<br>違う属性を出すとコンボはLv1にリセット。無属性カードはコンボに影響しない。コンボはターンをまたいで持続するが、敵のジャミングで消される。</p>
-    <h3>■ 立ち回り</h3>
-    <p>戦闘後はパーツ報酬と自動修復(+4)。休憩・ショップで修理を怠ると、ボス戦の前に腕が消し飛ぶ。</p>
-    <h3>■ 操作</h3>
-    <p>カードクリック(または数字キー1〜8)で使用 / <b>E</b>でターン終了 / 敵パーツをクリックで攻撃対象を変更。</p>
-    <button class="btn" onclick="toggleHelp(false)">閉じる</button>
-  </div>
-</div>
-
-<button id="mute-btn" onclick="toggleMute()">♪</button>
-
-<script src="js/data.js"></script>
-<script src="js/sfx.js"></script>
-<script src="js/fx.js"></script>
-<script src="js/battle.js"></script>
-<script src="js/run.js"></script>
-<script src="js/main.js"></script>
+<footer class="site-footer"><div class="inner">
+  <nav>
+    <a href="about.html">サイト概要</a>
+    <a href="privacy.html">プライバシーポリシー</a>
+    <a href="contact.html">お問い合わせ</a>
+  </nav>
+  <div>© 2026 くらしの電卓</div>
+</div></footer>
 </body>
 </html>

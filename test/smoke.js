@@ -7,7 +7,7 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
-const root = path.join(__dirname, '..');
+const root = path.join(__dirname, '..', 'game');
 const files = ['js/data.js', 'js/sfx.js', 'js/fx.js', 'js/battle.js', 'js/run.js', 'js/main.js'];
 
 const prelude = `

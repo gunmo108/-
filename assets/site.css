@@ -1,0 +1,175 @@
+/* くらしの計算ツール集 — 共通スタイル(スマホファースト・軽量) */
+:root {
+  --bg: #f7f8f5;
+  --card: #ffffff;
+  --ink: #26301f;
+  --sub: #5c6653;
+  --line: #dfe4d8;
+  --accent: #3e7a3e;
+  --accent-ink: #ffffff;
+  --accent-soft: #e8f2e6;
+  --warn: #b45309;
+  --radius: 12px;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  font-family: "Hiragino Kaku Gothic ProN", "Hiragino Sans", "BIZ UDPGothic", Meiryo, system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  line-height: 1.8;
+  font-size: 16px;
+}
+
+a { color: var(--accent); }
+img { max-width: 100%; }
+
+.wrap { max-width: 760px; margin: 0 auto; padding: 0 16px 48px; }
+
+/* ---- header / footer ---- */
+.site-header {
+  background: var(--card);
+  border-bottom: 1px solid var(--line);
+  padding: 12px 16px;
+}
+.site-header .inner { max-width: 760px; margin: 0 auto; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.site-title { font-size: 18px; font-weight: 700; text-decoration: none; color: var(--ink); }
+.site-title span { color: var(--accent); }
+.site-tag { font-size: 12px; color: var(--sub); }
+
+.breadcrumb { font-size: 12px; color: var(--sub); margin: 12px 0 0; }
+.breadcrumb a { color: var(--sub); }
+
+.site-footer {
+  border-top: 1px solid var(--line);
+  margin-top: 48px;
+  padding: 24px 16px 40px;
+  background: var(--card);
+  font-size: 13px;
+  color: var(--sub);
+}
+.site-footer .inner { max-width: 760px; margin: 0 auto; }
+.site-footer nav { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; }
+
+/* ---- headings / article ---- */
+h1 { font-size: 24px; line-height: 1.4; margin: 20px 0 8px; }
+h2 { font-size: 19px; margin: 40px 0 12px; padding: 6px 12px; border-left: 4px solid var(--accent); background: var(--card); border-radius: 4px; }
+h3 { font-size: 16px; margin: 24px 0 8px; }
+.lead { color: var(--sub); margin: 0 0 20px; }
+article p { margin: 12px 0; }
+article ul, article ol { padding-left: 22px; }
+article table { border-collapse: collapse; width: 100%; font-size: 14px; }
+article th, article td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; background: var(--card); }
+article th { background: var(--accent-soft); }
+.table-scroll { overflow-x: auto; }
+
+/* ---- tool card ---- */
+.tool {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 20px 16px;
+  margin: 20px 0;
+  box-shadow: 0 1px 3px rgba(38, 48, 31, 0.06);
+}
+.tool .field { margin-bottom: 14px; }
+.tool label { display: block; font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+.tool .hint { font-size: 12px; color: var(--sub); font-weight: 400; }
+.tool input[type="number"], .tool input[type="text"], .tool input[type="date"], .tool select {
+  width: 100%;
+  font-size: 18px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+}
+.tool input:focus, .tool select:focus { outline: 2px solid var(--accent); border-color: var(--accent); }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+@media (max-width: 480px) { .grid3 { grid-template-columns: 1fr 1fr; } }
+
+.btn {
+  display: inline-block;
+  width: 100%;
+  font-size: 17px;
+  font-weight: 700;
+  padding: 12px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  cursor: pointer;
+}
+.btn:active { transform: translateY(1px); }
+.btn-sub { background: var(--card); color: var(--accent); border: 1px solid var(--accent); }
+
+.chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+.chip {
+  font-size: 13px;
+  padding: 5px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  cursor: pointer;
+  color: var(--ink);
+}
+.chip:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ---- result ---- */
+.result {
+  margin-top: 16px;
+  padding: 16px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  display: none;
+}
+.result.show { display: block; }
+.result .big { font-size: 28px; font-weight: 800; color: var(--accent); }
+.result .unit { font-size: 15px; font-weight: 700; }
+.result table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 14px; }
+.result th, .result td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: left; background: transparent; border-left: 0; border-right: 0; border-top: 0; }
+.result .err { color: var(--warn); font-weight: 700; }
+.result .win { color: var(--accent); font-weight: 800; }
+
+/* ---- tool index cards (top page) ---- */
+.tool-list { list-style: none; padding: 0; display: grid; gap: 14px; }
+@media (min-width: 560px) { .tool-list { grid-template-columns: 1fr 1fr; } }
+.tool-list a {
+  display: block;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px;
+  text-decoration: none;
+  color: var(--ink);
+  height: 100%;
+}
+.tool-list a:hover { border-color: var(--accent); }
+.tool-list .t-name { font-weight: 700; color: var(--accent); font-size: 17px; }
+.tool-list .t-desc { font-size: 13px; color: var(--sub); margin-top: 4px; }
+
+/* ---- ad slot placeholder ----
+ * AdSense合格後、この div の中に広告コードを貼る。
+ * 未設定の間は何も表示されない(高さ0)。 */
+.ad-slot { margin: 24px 0; text-align: center; }
+
+/* ---- FAQ ---- */
+.faq dt { font-weight: 700; margin-top: 16px; }
+.faq dt::before { content: "Q. "; color: var(--accent); }
+.faq dd { margin: 4px 0 0; padding-left: 0; }
+.faq dd::before { content: "A. "; color: var(--warn); font-weight: 700; }
+
+/* ---- notice ---- */
+.notice {
+  font-size: 13px;
+  color: var(--sub);
+  background: var(--card);
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin: 16px 0;
+}

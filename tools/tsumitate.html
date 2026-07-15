@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>積立シミュレーター|毎月の積立でいくら貯まる?複利計算で将来資産を試算【無料】</title>
+<meta name="description" content="毎月の積立額・年数・想定利回りを入れるだけで、将来の資産額を複利計算でシミュレーション。元本と運用益の内訳、年ごとの推移も表示。貯金・つみたて投資の計画づくりに使える無料ツール。">
+<link rel="canonical" href="https://gunmo108.github.io/-/tools/tsumitate.html">
+<meta property="og:type" content="website">
+<meta property="og:title" content="積立シミュレーター|毎月の積立でいくら貯まる?">
+<meta property="og:description" content="積立額・年数・利回りから将来の資産額を複利計算。">
+<meta property="og:url" content="https://gunmo108.github.io/-/tools/tsumitate.html">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='80' font-size='80'>💰</text></svg>">
+<!-- GA4: 計測を始めるときは下の2行のコメントを外し、G-XXXXXXXXXX を自分の測定IDに置き換える
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)};gtag('js',new Date());gtag('config','G-XXXXXXXXXX');</script>
+-->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "積立シミュレーター",
+  "url": "https://gunmo108.github.io/-/tools/tsumitate.html",
+  "applicationCategory": "FinanceApplication",
+  "operatingSystem": "Any",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "JPY" },
+  "description": "毎月の積立額と想定利回りから将来の資産額を複利計算する無料ツール"
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "想定利回りは何%で計算すればいいですか?",
+      "acceptedAnswer": { "@type": "Answer", "text": "銀行預金なら0〜0.3%程度、全世界株式のインデックス投資の長期リターンは年3〜7%程度が過去実績に基づく目安としてよく使われます。将来を保証する数字ではないため、複数のパターンで試算するのがおすすめです。" }
+    },
+    {
+      "@type": "Question",
+      "name": "計算方法は?",
+      "acceptedAnswer": { "@type": "Answer", "text": "毎月末に一定額を積み立て、月次で複利運用する前提(年利÷12を月利とする期末払い年金終価)で計算しています。金融庁の資産運用シミュレーションと同じ考え方です。" }
+    }
+  ]
+}
+</script>
+</head>
+<body>
+<header class="site-header"><div class="inner">
+  <a class="site-title" href="../index.html">くらしの<span>電卓</span></a>
+  <span class="site-tag">毎日の「いくら?」を3秒で解決</span>
+</div></header>
+
+<div class="wrap">
+<nav class="breadcrumb"><a href="../index.html">くらしの電卓</a> › 積立シミュレーター</nav>
+<h1>💰 積立シミュレーター</h1>
+<p class="lead">毎月の積立額・期間・想定利回りを入れると、将来の資産額を複利で計算します。元本との差(運用益)と年ごとの推移も表示します。</p>
+
+<div class="tool">
+  <div class="grid3">
+    <div class="field">
+      <label for="monthly">毎月の積立額(円)</label>
+      <input type="number" id="monthly" inputmode="numeric" placeholder="例: 30000" min="0">
+    </div>
+    <div class="field">
+      <label for="years">積立期間(年)</label>
+      <input type="number" id="years" inputmode="decimal" placeholder="例: 20" min="0.5" step="0.5">
+    </div>
+    <div class="field">
+      <label for="rate">想定利回り(年%)</label>
+      <input type="number" id="rate" inputmode="decimal" placeholder="例: 5" step="0.1">
+    </div>
+  </div>
+  <div class="field">
+    <label>利回りの目安</label>
+    <div class="chips" id="rateChips"></div>
+  </div>
+  <button class="btn" id="calc">将来の資産額を計算する</button>
+  <div class="result" id="result"></div>
+</div>
+
+<div class="ad-slot"><!-- AdSense広告コード貼り付け位置(記事上) --></div>
+
+<article>
+<h2>複利の力は「期間」で決まる</h2>
+<p>積立の結果を大きく左右するのは、実は毎月の金額よりも<strong>続けた年数</strong>です。複利では運用益がさらに利益を生むため、資産は時間とともに加速度的に増えます。毎月3万円・年利5%で試算すると:</p>
+<div class="table-scroll">
+<table>
+  <tr><th>期間</th><th>元本</th><th>資産額(概算)</th><th>運用益</th></tr>
+  <tr><td>10年</td><td>360万円</td><td>約466万円</td><td>約106万円</td></tr>
+  <tr><td>20年</td><td>720万円</td><td>約1,233万円</td><td>約513万円</td></tr>
+  <tr><td>30年</td><td>1,080万円</td><td>約2,497万円</td><td>約1,417万円</td></tr>
+</table>
+</div>
+<p>10年から20年で運用益は約5倍、30年では元本を上回ります。「少額でも早く始めて長く続ける」ことが複利を味方につける唯一の方法です。</p>
+
+<h2>想定利回りの現実的な置き方</h2>
+<ul>
+  <li><strong>銀行の普通預金・定期預金</strong>: 年0〜0.3%程度。元本保証だが、資産を増やす力はほぼありません。</li>
+  <li><strong>全世界株式・米国株式のインデックス投資</strong>: 過去の長期実績では年3〜7%程度がよく使われる目安です。ただし短期では大きく上下し、<strong>将来の成果は保証されません</strong>。</li>
+  <li><strong>堅実に見積もるなら</strong>: 3%と5%の両方で試算し、幅を持って計画するのがおすすめです。</li>
+</ul>
+<p>なお、NISA(少額投資非課税制度)の口座内であれば運用益に税金(通常20.315%)がかかりません。このツールの計算結果は税金を考慮していないため、課税口座の場合は運用益から約2割引いた額が手取りの目安になります。</p>
+
+<h2>「月5,000円」でも意味はあるか</h2>
+<p>あります。月5,000円を年利5%で20年積み立てると、元本120万円に対して約85万円の運用益が付き、合計約205万円。子どもの進学費用の一部や車の買い替え資金として十分に意味のある金額です。家計に無理のない金額で始めて、余裕ができたら増額するのが長続きのコツです。</p>
+
+<h2>よくある質問</h2>
+<dl class="faq">
+  <dt>このシミュレーションどおりに増えますか?</dt>
+  <dd>いいえ。投資の利回りは毎年変動し、元本割れの期間もありえます。あくまで「一定利回りが続いた場合」の目安としてお使いください。</dd>
+  <dt>ボーナス月の増額は計算できますか?</dt>
+  <dd>このツールは毎月定額の前提です。ボーナス分は「年間の追加額÷12」を毎月の積立額に足すと近い結果になります。</dd>
+</dl>
+</article>
+
+<div class="ad-slot"><!-- AdSense広告コード貼り付け位置(記事下) --></div>
+
+<div class="notice">関連ツール: <a href="denkidai.html">電気代計算</a> / <a href="hidzuke.html">日数計算</a></div>
+<!-- affiliate-slot: ネット証券(NISA口座開設)のアフィリエイトリンクをここに(A8.net等と提携後) -->
+</div>
+
+<footer class="site-footer"><div class="inner">
+  <nav>
+    <a href="../index.html">ツール一覧</a>
+    <a href="../about.html">サイト概要</a>
+    <a href="../privacy.html">プライバシーポリシー</a>
+    <a href="../contact.html">お問い合わせ</a>
+  </nav>
+  <div>© 2026 くらしの電卓</div>
+</div></footer>
+
+<script src="../assets/tools.js"></script>
+<script>
+(function () {
+  const T = window.KurashiTools;
+  const $ = (id) => document.getElementById(id);
+
+  [['預金 0.2%', 0.2], ['堅実 3%', 3], ['標準 5%', 5], ['強気 7%', 7]].forEach(([label, r]) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'chip'; b.textContent = label;
+    b.addEventListener('click', () => { $('rate').value = r; calc(); });
+    $('rateChips').appendChild(b);
+  });
+
+  function man(n) {
+    return n >= 1000000
+      ? (Math.round(n / 10000).toLocaleString('ja-JP')) + '万円'
+      : Math.round(n).toLocaleString('ja-JP') + '円';
+  }
+
+  function calc() {
+    const r = T.tsumitate($('monthly').value, $('years').value, $('rate').value);
+    const el = $('result');
+    el.classList.add('show');
+    if (!r) {
+      el.innerHTML = '<span class="err">積立額(0以上)・年数(0.5以上)・利回りを入力してください。</span>';
+      return;
+    }
+    let html =
+      '<div>' + $('years').value + '年後 <span class="big">' + man(r.total) + '</span></div>' +
+      '<table>' +
+      '<tr><th>元本(積立合計)</th><td>' + man(r.principal) + '</td></tr>' +
+      '<tr><th>運用益</th><td>' + man(r.gain) + '</td></tr>' +
+      '</table>';
+    if (r.yearly.length > 1) {
+      html += '<table><tr><th>年</th><th>元本</th><th>資産額</th></tr>';
+      const step = r.yearly.length > 10 ? Math.ceil(r.yearly.length / 10) : 1;
+      r.yearly.forEach((y, i) => {
+        if (i % step === 0 || i === r.yearly.length - 1) {
+          html += '<tr><td>' + y.year + '年目</td><td>' + man(y.principal) + '</td><td>' + man(y.total) + '</td></tr>';
+        }
+      });
+      html += '</table>';
+    }
+    el.innerHTML = html;
+  }
+
+  $('calc').addEventListener('click', calc);
+  ['monthly', 'years', 'rate'].forEach((id) => $(id).addEventListener('input', () => { if ($('result').classList.contains('show')) calc(); }));
+})();
+</script>
+</body>
+</html>

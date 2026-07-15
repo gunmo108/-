@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>どっちがお得?単価比較計算ツール|グラム単価・個数単価をその場で比較【無料】</title>
+<meta name="description" content="「300gで398円」と「500gで598円」どっちが安い?値段と内容量を入れるだけで100gあたりの単価を比較し、お得な方を表示。スーパーでの買い物中にスマホでサッと使える無料ツール。">
+<link rel="canonical" href="https://gunmo108.github.io/-/tools/tanka.html">
+<meta property="og:type" content="website">
+<meta property="og:title" content="どっちがお得?単価比較計算ツール">
+<meta property="og:description" content="値段と内容量を入れるだけで、どっちがお得か一目でわかる。">
+<meta property="og:url" content="https://gunmo108.github.io/-/tools/tanka.html">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='80' font-size='80'>🛒</text></svg>">
+<!-- GA4: 計測を始めるときは下の2行のコメントを外し、G-XXXXXXXXXX を自分の測定IDに置き換える
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)};gtag('js',new Date());gtag('config','G-XXXXXXXXXX');</script>
+-->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "単価比較計算ツール",
+  "url": "https://gunmo108.github.io/-/tools/tanka.html",
+  "applicationCategory": "UtilityApplication",
+  "operatingSystem": "Any",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "JPY" },
+  "description": "容量違いの商品の単価を比較してお得な方を判定する無料ツール"
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "単価はどうやって計算しますか?",
+      "acceptedAnswer": { "@type": "Answer", "text": "価格 ÷ 内容量 × 基準量で計算します。たとえば398円で300gの商品なら、398 ÷ 300 × 100 = 100gあたり約132.7円です。" }
+    },
+    {
+      "@type": "Question",
+      "name": "大容量の方が必ずお得ですか?",
+      "acceptedAnswer": { "@type": "Answer", "text": "多くの場合は大容量の方が単価は安くなりますが、特売時は小容量の方が安いことも珍しくありません。また使い切れずに捨てれば実質単価は上がるため、消費ペースも考慮しましょう。" }
+    }
+  ]
+}
+</script>
+</head>
+<body>
+<header class="site-header"><div class="inner">
+  <a class="site-title" href="../index.html">くらしの<span>電卓</span></a>
+  <span class="site-tag">毎日の「いくら?」を3秒で解決</span>
+</div></header>
+
+<div class="wrap">
+<nav class="breadcrumb"><a href="../index.html">くらしの電卓</a> › 単価比較</nav>
+<h1>🛒 どっちがお得?単価比較ツール</h1>
+<p class="lead">値段と内容量(g・ml・個数など)を入れるだけで、基準量あたりの単価を比較してお得な方を表示します。売り場でスマホからどうぞ。</p>
+
+<div class="tool">
+  <div class="grid2">
+    <div class="field">
+      <label for="pa">商品A: 値段(円)</label>
+      <input type="number" id="pa" inputmode="decimal" placeholder="例: 398" min="0">
+    </div>
+    <div class="field">
+      <label for="aa">商品A: 内容量</label>
+      <input type="number" id="aa" inputmode="decimal" placeholder="例: 300" min="0">
+    </div>
+    <div class="field">
+      <label for="pb">商品B: 値段(円)</label>
+      <input type="number" id="pb" inputmode="decimal" placeholder="例: 598" min="0">
+    </div>
+    <div class="field">
+      <label for="ab">商品B: 内容量</label>
+      <input type="number" id="ab" inputmode="decimal" placeholder="例: 500" min="0">
+    </div>
+    <div class="field">
+      <label for="pc">商品C: 値段(円) <span class="hint">任意</span></label>
+      <input type="number" id="pc" inputmode="decimal" min="0">
+    </div>
+    <div class="field">
+      <label for="ac">商品C: 内容量 <span class="hint">任意</span></label>
+      <input type="number" id="ac" inputmode="decimal" min="0">
+    </div>
+  </div>
+  <div class="field">
+    <label for="per">単価の基準量 <span class="hint">g・ml なら100、個・枚なら1が便利</span></label>
+    <select id="per">
+      <option value="100" selected>100(g・mlあたり)</option>
+      <option value="1">1(個・枚・回あたり)</option>
+      <option value="1000">1000(kg・Lあたり)</option>
+    </select>
+  </div>
+  <button class="btn" id="calc">単価を比較する</button>
+  <div class="result" id="result"></div>
+</div>
+
+<div class="ad-slot"><!-- AdSense広告コード貼り付け位置(記事上) --></div>
+
+<article>
+<h2>単価比較の考え方</h2>
+<p>容量の違う商品を比べるときは、<strong>「基準量あたりの値段(単価)」</strong>に揃えて比較します。計算式は次のとおりです。</p>
+<p><strong>単価 = 価格 ÷ 内容量 × 基準量</strong></p>
+<p>たとえば「300gで398円」なら100gあたり約132.7円、「500gで598円」なら100gあたり119.6円。この場合は500gの方が約10%お得です。gやmlの商品は100あたり、個数モノは1個あたりで比べるのが分かりやすい基準です。</p>
+
+<h2>「大は小を兼ねる」とは限らない3つの落とし穴</h2>
+<ol>
+  <li><strong>特売の小容量が逆転することがある</strong> — 通常価格どうしなら大容量が有利でも、チラシ特売の小サイズが単価で勝つケースはよくあります。感覚で決めずに、その場で単価を出すのが確実です。</li>
+  <li><strong>使い切れなければ実質単価は上がる</strong> — 食品を2割捨てれば、単価は実質1.25倍。家族の消費ペースで使い切れるサイズを選ぶことも「単価」のうちです。</li>
+  <li><strong>「増量中」「お徳用」の表示は単価を保証しない</strong> — パッケージの印象と実際の単価は別物です。内容量の数字だけを信じて計算しましょう。</li>
+</ol>
+
+<h2>売り場での使い方のコツ</h2>
+<p>スマホでこのページを開いたまま、値札の「価格」と「内容量」を2商品分入力するだけです。多くのスーパーでは値札に「100gあたり○円」の併記がありますが、表示がない店やドラッグストア、ネット通販との比較では自分で計算するしかありません。よく比較するのは、米・肉・トイレットペーパー(m数)・洗剤(詰め替え)・おむつ(枚数)あたり。特におむつや洗剤は「1枚あたり」「1回あたり」で比べると店舗間の差がはっきり出ます。</p>
+
+<h2>よくある質問</h2>
+<dl class="faq">
+  <dt>トイレットペーパーはどう比較する?</dt>
+  <dd>「総m数」で比較するのがおすすめです。12ロール入りでも1ロールの長さが違うと総量が変わります。値段÷総m数で1mあたりの単価が出せます(基準量は1を選択)。</dd>
+  <dt>税込と税抜が混ざっているときは?</dt>
+  <dd>必ずどちらかに揃えてください。軽減税率(8%)の食品なら、税抜価格×1.08で税込に揃えるのが確実です。</dd>
+</dl>
+</article>
+
+<div class="ad-slot"><!-- AdSense広告コード貼り付け位置(記事下) --></div>
+
+<div class="notice">関連ツール: <a href="waribiki.html">割引計算</a> / <a href="denkidai.html">電気代計算</a></div>
+</div>
+
+<footer class="site-footer"><div class="inner">
+  <nav>
+    <a href="../index.html">ツール一覧</a>
+    <a href="../about.html">サイト概要</a>
+    <a href="../privacy.html">プライバシーポリシー</a>
+    <a href="../contact.html">お問い合わせ</a>
+  </nav>
+  <div>© 2026 くらしの電卓</div>
+</div></footer>
+
+<script src="../assets/tools.js"></script>
+<script>
+(function () {
+  const T = window.KurashiTools;
+  const $ = (id) => document.getElementById(id);
+  const NAMES = ['商品A', '商品B', '商品C'];
+
+  function calc() {
+    const items = [];
+    const used = [];
+    [['pa', 'aa'], ['pb', 'ab'], ['pc', 'ac']].forEach(([p, a], i) => {
+      if ($(p).value !== '' || $(a).value !== '') {
+        items.push({ price: $(p).value, amount: $(a).value });
+        used.push(NAMES[i]);
+      }
+    });
+    const el = $('result');
+    el.classList.add('show');
+    if (items.length < 2) {
+      el.innerHTML = '<span class="err">2つ以上の商品の値段と内容量を入力してください。</span>';
+      return;
+    }
+    const per = $('per').value;
+    const r = T.tankaCompare(items, per);
+    if (!r) {
+      el.innerHTML = '<span class="err">値段は0以上、内容量は1以上の数値を入力してください。</span>';
+      return;
+    }
+    let html = '<div><span class="win">' + used[r.bestIndex] + '</span> が一番お得!</div><table><tr><th>商品</th><th>' + per + 'あたり</th><th>差</th></tr>';
+    r.rows.forEach((row, i) => {
+      html += '<tr><td>' + (row.best ? '<span class="win">★' + used[i] + '</span>' : used[i]) + '</td>' +
+        '<td>' + (Math.round(row.unit * 100) / 100).toLocaleString('ja-JP') + '円</td>' +
+        '<td>' + (row.best ? (Math.round(row.savePercent * 10) / 10) + '%お得' : '-') + '</td></tr>';
+    });
+    html += '</table>';
+    el.innerHTML = html;
+  }
+
+  $('calc').addEventListener('click', calc);
+  ['pa', 'aa', 'pb', 'ab', 'pc', 'ac', 'per'].forEach((id) => {
+    $(id).addEventListener('input', () => { if ($('result').classList.contains('show')) calc(); });
+  });
+})();
+</script>
+</body>
+</html>

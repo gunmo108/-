@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- リポジトリ名を変更した場合は、このファイルと各HTMLの canonical / og:url のURLも合わせて変更すること -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://gunmo108.github.io/-/</loc></url>
+  <url><loc>https://gunmo108.github.io/-/tools/denkidai.html</loc></url>
+  <url><loc>https://gunmo108.github.io/-/tools/tanka.html</loc></url>
+  <url><loc>https://gunmo108.github.io/-/tools/waribiki.html</loc></url>
+  <url><loc>https://gunmo108.github.io/-/tools/warikan.html</loc></url>
+  <url><loc>https://gunmo108.github.io/-/tools/hidzuke.html</loc></url>
+  <url><loc>https://gunmo108.github.io/-/tools/tsumitate.html</loc></url>
+  <url><loc>https://gunmo108.github.io/-/about.html</loc></url>
+</urlset>

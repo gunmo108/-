@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>割り勘計算ツール|端数はキリよく・幹事負担にも対応【無料】</title>
+<meta name="description" content="合計金額と人数を入れるだけで1人あたりの支払額を計算。100円単位のキリのいい徴収額、端数を幹事が負担するパターンにも対応した無料の割り勘計算ツール。飲み会・食事会の会計に。">
+<link rel="canonical" href="https://gunmo108.github.io/-/tools/warikan.html">
+<meta property="og:type" content="website">
+<meta property="og:title" content="割り勘計算ツール|端数はキリよく・幹事負担にも対応">
+<meta property="og:description" content="合計金額と人数を入れるだけ。キリのいい割り勘額がすぐわかる。">
+<meta property="og:url" content="https://gunmo108.github.io/-/tools/warikan.html">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='80' font-size='80'>🍻</text></svg>">
+<!-- GA4: 計測を始めるときは下の2行のコメントを外し、G-XXXXXXXXXX を自分の測定IDに置き換える
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)};gtag('js',new Date());gtag('config','G-XXXXXXXXXX');</script>
+-->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "割り勘計算ツール",
+  "url": "https://gunmo108.github.io/-/tools/warikan.html",
+  "applicationCategory": "UtilityApplication",
+  "operatingSystem": "Any",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "JPY" },
+  "description": "合計金額と人数から1人あたりの割り勘額を計算する無料ツール"
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "割り勘で端数が出たらどうするのが一般的?",
+      "acceptedAnswer": { "@type": "Answer", "text": "よくあるのは(1)100円単位に切り上げて集め、余りは幹事が預かるか次回に回す、(2)端数を幹事が負担する、の2パターンです。このツールは両方の金額を計算できます。" }
+    },
+    {
+      "@type": "Question",
+      "name": "先輩や上司に多めに払ってもらう傾斜配分はできますか?",
+      "acceptedAnswer": { "@type": "Answer", "text": "できます。傾斜割り勘の欄で「2:1:1」のように比率を入力すると、合計金額をその比率で配分し、キリのいい金額に丸めて表示します。" }
+    }
+  ]
+}
+</script>
+</head>
+<body>
+<header class="site-header"><div class="inner">
+  <a class="site-title" href="../index.html">くらしの<span>電卓</span></a>
+  <span class="site-tag">毎日の「いくら?」を3秒で解決</span>
+</div></header>
+
+<div class="wrap">
+<nav class="breadcrumb"><a href="../index.html">くらしの電卓</a> › 割り勘計算</nav>
+<h1>🍻 割り勘計算ツール</h1>
+<p class="lead">合計金額と人数を入れるだけで、1人あたりの支払額を計算します。キリのいい単位への切り上げや、端数を幹事が持つパターンにも対応。</p>
+
+<div class="tool">
+  <div class="grid2">
+    <div class="field">
+      <label for="total">合計金額(円)</label>
+      <input type="number" id="total" inputmode="numeric" placeholder="例: 13470" min="0">
+    </div>
+    <div class="field">
+      <label for="people">人数</label>
+      <input type="number" id="people" inputmode="numeric" placeholder="例: 4" min="1" step="1">
+    </div>
+  </div>
+  <div class="grid2">
+    <div class="field">
+      <label for="unit">丸め単位</label>
+      <select id="unit">
+        <option value="1">1円単位(ぴったり)</option>
+        <option value="10">10円単位</option>
+        <option value="100" selected>100円単位</option>
+        <option value="500">500円単位</option>
+        <option value="1000">1000円単位</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="mode">端数の扱い</label>
+      <select id="mode">
+        <option value="collect" selected>多めに集める(余りはプール)</option>
+        <option value="organizer">幹事が端数を負担する</option>
+      </select>
+    </div>
+  </div>
+  <button class="btn" id="calc">割り勘額を計算する</button>
+  <div class="result" id="result"></div>
+</div>
+
+<h2>傾斜割り勘(多め・少なめの配分)</h2>
+<div class="tool">
+  <div class="grid2">
+    <div class="field">
+      <label for="kTotal">合計金額(円)</label>
+      <input type="number" id="kTotal" inputmode="numeric" placeholder="例: 10000" min="0">
+    </div>
+    <div class="field">
+      <label for="kWeights">配分の比率 <span class="hint">カンマ区切り(例: 2,1,1)</span></label>
+      <input type="text" id="kWeights" inputmode="decimal" placeholder="例: 2,1,1">
+    </div>
+  </div>
+  <button class="btn" id="kCalc">傾斜配分を計算する</button>
+  <div class="result" id="kResult"></div>
+</div>
+
+<div class="ad-slot"><!-- AdSense広告コード貼り付け位置(記事上) --></div>
+
+<article>
+<h2>割り勘のスマートな進め方</h2>
+<p>割り勘は単純な「合計÷人数」ですが、実際の会計では割り切れないことがほとんどです。13,470円を4人で割ると1人3,367.5円——このまま集金すると小銭のやり取りで詰まります。現実的なのは次の2パターンです。</p>
+<ol>
+  <li><strong>キリのいい額に切り上げて集める</strong> — 1人3,400円ずつ集めると13,600円になり、130円余ります。余りは幹事が預かって次回の会に回すか、その場のお茶代にするのが定番です。</li>
+  <li><strong>端数を幹事が負担する</strong> — メンバーからは3,300円ずつ集め、幹事は残りの3,570円を払う方式。集金がスムーズで、幹事の「仕切り賃」として気持ちよく収まることが多いです。</li>
+</ol>
+<p>PayPayなどの送金アプリを使うなら1円単位のぴったり割り勘も現実的になりました。丸め単位で「1円単位」を選べば端数なしの正確な金額が出ます。</p>
+
+<h2>傾斜配分の目安</h2>
+<p>職場の飲み会などでは、役職や年次で金額に差をつける「傾斜配分」がよく使われます。明確なルールはありませんが、目安としては次のような比率が穏当です。</p>
+<div class="table-scroll">
+<table>
+  <tr><th>構成</th><th>比率の例</th></tr>
+  <tr><td>上司1人+部下3人</td><td>2 : 1 : 1 : 1</td></tr>
+  <tr><td>先輩2人+後輩2人</td><td>1.5 : 1.5 : 1 : 1</td></tr>
+  <tr><td>飲む人+飲まない人</td><td>1.3 : 1 程度(飲まない人を軽く)</td></tr>
+</table>
+</div>
+<p>比率欄には小数も使えます。合計が元の金額に必ず一致するよう、丸めで生じた誤差は最も比率の大きい人が吸収する仕組みです。</p>
+
+<h2>よくある質問</h2>
+<dl class="faq">
+  <dt>余ったお金はどうするのがいい?</dt>
+  <dd>「次回の会費に充当」が最も揉めません。金額と繰越をグループチャットに一言残しておくと透明性が保てます。</dd>
+  <dt>遅れて来た人や途中で帰った人は?</dt>
+  <dd>厳密に計算するより「1品+1杯分(1,000〜1,500円程度)を引いた定額」にするのが現実的です。傾斜割り勘の比率で0.5などを使う方法もあります。</dd>
+</dl>
+</article>
+
+<div class="ad-slot"><!-- AdSense広告コード貼り付け位置(記事下) --></div>
+
+<div class="notice">関連ツール: <a href="waribiki.html">割引計算</a> / <a href="hidzuke.html">日数計算</a></div>
+</div>
+
+<footer class="site-footer"><div class="inner">
+  <nav>
+    <a href="../index.html">ツール一覧</a>
+    <a href="../about.html">サイト概要</a>
+    <a href="../privacy.html">プライバシーポリシー</a>
+    <a href="../contact.html">お問い合わせ</a>
+  </nav>
+  <div>© 2026 くらしの電卓</div>
+</div></footer>
+
+<script src="../assets/tools.js"></script>
+<script>
+(function () {
+  const T = window.KurashiTools;
+  const $ = (id) => document.getElementById(id);
+
+  function calc() {
+    const mode = $('mode').value;
+    const r = T.warikan($('total').value, T.toNum($('people').value), $('unit').value, mode);
+    const el = $('result');
+    el.classList.add('show');
+    if (!r) {
+      el.innerHTML = '<span class="err">合計金額(0以上)と人数(1以上の整数)を入力してください。</span>';
+      return;
+    }
+    let html = '<div>1人あたり <span class="big">' + r.perPerson.toLocaleString('ja-JP') + '</span><span class="unit">円</span></div><table>';
+    html += '<tr><th>正確な頭割り</th><td>' + (Math.round(r.exact * 10) / 10).toLocaleString('ja-JP') + '円</td></tr>';
+    if (mode === 'organizer') {
+      html += '<tr><th>幹事の支払い</th><td>' + r.organizerPays.toLocaleString('ja-JP') + '円(端数込み)</td></tr>';
+    } else if (r.surplus > 0) {
+      html += '<tr><th>集まる金額</th><td>' + r.collected.toLocaleString('ja-JP') + '円</td></tr>';
+      html += '<tr><th>余り(プール)</th><td>' + r.surplus.toLocaleString('ja-JP') + '円</td></tr>';
+    }
+    html += '</table>';
+    el.innerHTML = html;
+  }
+
+  function kCalc() {
+    const weights = $('kWeights').value.split(/[、,]/).map((s) => s.trim()).filter((s) => s !== '');
+    const r = T.warikanKeisha($('kTotal').value, weights, 100);
+    const el = $('kResult');
+    el.classList.add('show');
+    if (!r) {
+      el.innerHTML = '<span class="err">合計金額と、正の数のカンマ区切り比率(例: 2,1,1)を入力してください。</span>';
+      return;
+    }
+    let html = '<table><tr><th>メンバー</th><th>比率</th><th>支払額</th></tr>';
+    r.shares.forEach((s, i) => {
+      html += '<tr><td>' + (i + 1) + '人目</td><td>' + weights[i] + '</td><td>' + s.toLocaleString('ja-JP') + '円' + (i === r.adjustedIndex && r.adjustment !== 0 ? ' <span class="hint">(端数調整込み)</span>' : '') + '</td></tr>';
+    });
+    html += '</table>';
+    el.innerHTML = html;
+  }
+
+  $('calc').addEventListener('click', calc);
+  $('kCalc').addEventListener('click', kCalc);
+  ['total', 'people', 'unit', 'mode'].forEach((id) => $(id).addEventListener('input', () => { if ($('result').classList.contains('show')) calc(); }));
+  ['kTotal', 'kWeights'].forEach((id) => $(id).addEventListener('input', () => { if ($('kResult').classList.contains('show')) kCalc(); }));
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>日数計算ツール|今日から○日後は何月何日?記念日まであと何日?【無料】</title>
+<meta name="description" content="「今日から100日後は何月何日?」「記念日・締切まであと何日?」を曜日付きで一発計算。日付の足し算・引き算と2つの日付の間の日数計算ができる無料ツール。スマホ対応・登録不要。">
+<link rel="canonical" href="https://gunmo108.github.io/-/tools/hidzuke.html">
+<meta property="og:type" content="website">
+<meta property="og:title" content="日数計算ツール|○日後の日付・あと何日を一発計算">
+<meta property="og:description" content="日付の足し算とカウントダウンを曜日付きで計算。">
+<meta property="og:url" content="https://gunmo108.github.io/-/tools/hidzuke.html">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='80' font-size='80'>📅</text></svg>">
+<!-- GA4: 計測を始めるときは下の2行のコメントを外し、G-XXXXXXXXXX を自分の測定IDに置き換える
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)};gtag('js',new Date());gtag('config','G-XXXXXXXXXX');</script>
+-->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "日数計算ツール",
+  "url": "https://gunmo108.github.io/-/tools/hidzuke.html",
+  "applicationCategory": "UtilityApplication",
+  "operatingSystem": "Any",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "JPY" },
+  "description": "日付の足し算・引き算と2つの日付の間の日数を計算する無料ツール"
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "「あと何日」の数え方は当日を含みますか?",
+      "acceptedAnswer": { "@type": "Answer", "text": "このツールは当日を含まない「差の日数」で計算します。今日が7月15日で目標日が7月16日なら「あと1日」です。当日を含めて数えたい場合(初日算入)は結果に1を足してください。" }
+    },
+    {
+      "@type": "Question",
+      "name": "うるう年は考慮されますか?",
+      "acceptedAnswer": { "@type": "Answer", "text": "されます。2月29日をまたぐ計算も正確に処理します。" }
+    }
+  ]
+}
+</script>
+</head>
+<body>
+<header class="site-header"><div class="inner">
+  <a class="site-title" href="../index.html">くらしの<span>電卓</span></a>
+  <span class="site-tag">毎日の「いくら?」を3秒で解決</span>
+</div></header>
+
+<div class="wrap">
+<nav class="breadcrumb"><a href="../index.html">くらしの電卓</a> › 日数計算</nav>
+<h1>📅 日数計算ツール</h1>
+<p class="lead">「○日後は何月何日?」の日付計算と、「あの日まで/あの日から何日?」のカウント計算ができます。曜日付きで表示します。</p>
+
+<h2>○日後・○日前の日付を調べる</h2>
+<div class="tool">
+  <div class="grid2">
+    <div class="field">
+      <label for="baseDate">基準の日付</label>
+      <input type="date" id="baseDate">
+    </div>
+    <div class="field">
+      <label for="addDays">何日後?<span class="hint">(前はマイナス)</span></label>
+      <input type="number" id="addDays" inputmode="numeric" placeholder="例: 100" step="1">
+    </div>
+  </div>
+  <div class="field">
+    <label>よく使う日数</label>
+    <div class="chips" id="dayChips"></div>
+  </div>
+  <button class="btn" id="addCalc">日付を計算する</button>
+  <div class="result" id="addResult"></div>
+</div>
+
+<h2>2つの日付の間の日数を数える</h2>
+<div class="tool">
+  <div class="grid2">
+    <div class="field">
+      <label for="fromDate">起点の日付</label>
+      <input type="date" id="fromDate">
+    </div>
+    <div class="field">
+      <label for="toDate">目標の日付</label>
+      <input type="date" id="toDate">
+    </div>
+  </div>
+  <button class="btn" id="diffCalc">日数を数える</button>
+  <div class="result" id="diffResult"></div>
+</div>
+
+<div class="ad-slot"><!-- AdSense広告コード貼り付け位置(記事上) --></div>
+
+<article>
+<h2>日数計算はどんなときに使う?</h2>
+<ul>
+  <li><strong>手続きの期限</strong> — 「交付から14日以内」「購入日から30日以内の返品」など、行政手続きや保証の期限確認。</li>
+  <li><strong>記念日・イベントのカウントダウン</strong> — 結婚式・受験・出産予定日・推しのライブまであと何日か。</li>
+  <li><strong>100日記念・生後○日</strong> — 赤ちゃんのお食い初め(生後100日前後)や、付き合って100日目の日付を出すのに便利です。</li>
+  <li><strong>支払い・契約</strong> — 「解約は更新日の60日前まで」を具体的な日付に直す。</li>
+</ul>
+
+<h2>「あと何日」の数え方に注意</h2>
+<p>日数の数え方には2種類あり、混同するとちょうど1日ずれます。</p>
+<ul>
+  <li><strong>初日不算入(このツールの方式)</strong> — 今日と明日の差は「1日」。法律上の期間計算も原則この方式です(民法140条)。</li>
+  <li><strong>初日算入(数え)</strong> — 今日を1日目と数える方式。「生後○日」は誕生日当日を1日目とする数え方が一般的なので、このツールの結果に1を足してください。</li>
+</ul>
+<p>役所や契約の「○日以内」は初日不算入で数えるのが原則ですが、期限をまたぐと取り返しがつかないものは、1日早めに動くのが安全です。</p>
+
+<h2>よくある質問</h2>
+<dl class="faq">
+  <dt>営業日(土日祝を除く)では数えられますか?</dt>
+  <dd>このツールは暦日(カレンダーの日数)で計算します。営業日換算が必要な場合は、暦日÷7×5がおおよその目安になります。</dd>
+  <dt>過去の日付からの経過日数も出せますか?</dt>
+  <dd>出せます。「2つの日付の間の日数」で起点に過去の日付を入れれば、今日までの経過日数がわかります。禁煙・貯金などの継続日数の確認にどうぞ。</dd>
+</dl>
+</article>
+
+<div class="ad-slot"><!-- AdSense広告コード貼り付け位置(記事下) --></div>
+
+<div class="notice">関連ツール: <a href="tsumitate.html">積立シミュレーター</a> / <a href="warikan.html">割り勘計算</a></div>
+</div>
+
+<footer class="site-footer"><div class="inner">
+  <nav>
+    <a href="../index.html">ツール一覧</a>
+    <a href="../about.html">サイト概要</a>
+    <a href="../privacy.html">プライバシーポリシー</a>
+    <a href="../contact.html">お問い合わせ</a>
+  </nav>
+  <div>© 2026 くらしの電卓</div>
+</div></footer>
+
+<script src="../assets/tools.js"></script>
+<script>
+(function () {
+  const T = window.KurashiTools;
+  const $ = (id) => document.getElementById(id);
+
+  // 今日の日付を初期値に(端末のローカル日付)
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  const todayISO = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate());
+  $('baseDate').value = todayISO;
+  $('fromDate').value = todayISO;
+
+  [7, 14, 30, 100, 365].forEach((d) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'chip'; b.textContent = d + '日後';
+    b.addEventListener('click', () => { $('addDays').value = d; addCalc(); });
+    $('dayChips').appendChild(b);
+  });
+
+  function fmt(iso) {
+    const [y, m, d] = iso.split('-');
+    return y + '年' + Number(m) + '月' + Number(d) + '日(' + T.youbiOf(iso) + ')';
+  }
+
+  function addCalc() {
+    const iso = T.dateAdd($('baseDate').value, T.toNum($('addDays').value));
+    const el = $('addResult');
+    el.classList.add('show');
+    if (!iso) {
+      el.innerHTML = '<span class="err">基準日と日数(整数)を入力してください。</span>';
+      return;
+    }
+    const n = T.toNum($('addDays').value);
+    el.innerHTML = '<div>' + (n >= 0 ? n + '日後は' : (-n) + '日前は') + ' <span class="big">' + fmt(iso) + '</span></div>';
+  }
+
+  function diffCalc() {
+    const d = T.dateDiff($('fromDate').value, $('toDate').value);
+    const el = $('diffResult');
+    el.classList.add('show');
+    if (d === null) {
+      el.innerHTML = '<span class="err">2つの日付を入力してください。</span>';
+      return;
+    }
+    const weeks = Math.floor(Math.abs(d) / 7);
+    el.innerHTML =
+      '<div>' + (d >= 0 ? 'あと' : '経過') + ' <span class="big">' + Math.abs(d).toLocaleString('ja-JP') + '</span><span class="unit">日</span>' + (d < 0 ? '(目標日は過去です)' : '') + '</div>' +
+      '<table><tr><th>週に直すと</th><td>約' + weeks + '週間</td></tr>' +
+      '<tr><th>初日を1日目と数える場合</th><td>' + (Math.abs(d) + 1).toLocaleString('ja-JP') + '日</td></tr></table>';
+  }
+
+  $('addCalc').addEventListener('click', addCalc);
+  $('diffCalc').addEventListener('click', diffCalc);
+  ['baseDate', 'addDays'].forEach((id) => $(id).addEventListener('input', () => { if ($('addResult').classList.contains('show')) addCalc(); }));
+  ['fromDate', 'toDate'].forEach((id) => $(id).addEventListener('input', () => { if ($('diffResult').classList.contains('show')) diffCalc(); }));
+})();
+</script>
+</body>
+</html>

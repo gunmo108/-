@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>割引計算ツール|○%オフでいくら?ポイント還元との比較もできる【無料】</title>
+<meta name="description" content="「7,980円の30%オフはいくら?」を一発計算。値引き後の価格と割引額がすぐわかる無料ツール。○%オフと○%ポイント還元のどちらが得かの比較にも対応。スマホ対応・登録不要。">
+<link rel="canonical" href="https://gunmo108.github.io/-/tools/waribiki.html">
+<meta property="og:type" content="website">
+<meta property="og:title" content="割引計算ツール|○%オフでいくら?">
+<meta property="og:description" content="値引き後の価格を一発計算。ポイント還元との損得比較も。">
+<meta property="og:url" content="https://gunmo108.github.io/-/tools/waribiki.html">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='80' font-size='80'>🏷️</text></svg>">
+<!-- GA4: 計測を始めるときは下の2行のコメントを外し、G-XXXXXXXXXX を自分の測定IDに置き換える
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)};gtag('js',new Date());gtag('config','G-XXXXXXXXXX');</script>
+-->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "割引計算ツール",
+  "url": "https://gunmo108.github.io/-/tools/waribiki.html",
+  "applicationCategory": "UtilityApplication",
+  "operatingSystem": "Any",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "JPY" },
+  "description": "割引後の価格とポイント還元との損得を計算する無料ツール"
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "30%オフの計算方法は?",
+      "acceptedAnswer": { "@type": "Answer", "text": "元の価格に0.7を掛けます(100%−30%=70%)。7,980円の30%オフなら 7980×0.7=5,586円です。" }
+    },
+    {
+      "@type": "Question",
+      "name": "10%オフと10%ポイント還元はどちらが得?",
+      "acceptedAnswer": { "@type": "Answer", "text": "支払額が確実に減る10%オフの方が実用上は有利です。実質負担額は同じですが、ポイント還元は満額を支払った上で、ポイントを使って初めて得になります。使い忘れや失効のリスクも考慮しましょう。" }
+    }
+  ]
+}
+</script>
+</head>
+<body>
+<header class="site-header"><div class="inner">
+  <a class="site-title" href="../index.html">くらしの<span>電卓</span></a>
+  <span class="site-tag">毎日の「いくら?」を3秒で解決</span>
+</div></header>
+
+<div class="wrap">
+<nav class="breadcrumb"><a href="../index.html">くらしの電卓</a> › 割引計算</nav>
+<h1>🏷️ 割引計算ツール</h1>
+<p class="lead">「○%オフでいくら?」を一発計算。ポイント還元と割引のどちらが得かの比較もできます。</p>
+
+<div class="tool">
+  <div class="grid2">
+    <div class="field">
+      <label for="price">元の価格(円)</label>
+      <input type="number" id="price" inputmode="decimal" placeholder="例: 7980" min="0">
+    </div>
+    <div class="field">
+      <label for="off">割引率(%オフ)</label>
+      <input type="number" id="off" inputmode="decimal" placeholder="例: 30" min="0" max="100">
+    </div>
+  </div>
+  <div class="field">
+    <label>よく見る割引率</label>
+    <div class="chips" id="offChips"></div>
+  </div>
+  <button class="btn" id="calc">割引後の価格を計算する</button>
+  <div class="result" id="result"></div>
+</div>
+
+<h2>割引 vs ポイント還元 どっちが得?</h2>
+<div class="tool">
+  <div class="grid3">
+    <div class="field">
+      <label for="vsPrice">価格(円)</label>
+      <input type="number" id="vsPrice" inputmode="decimal" placeholder="例: 10000" min="0">
+    </div>
+    <div class="field">
+      <label for="vsOff">割引(%オフ)</label>
+      <input type="number" id="vsOff" inputmode="decimal" placeholder="例: 10" min="0" max="100">
+    </div>
+    <div class="field">
+      <label for="vsPoint">ポイント還元(%)</label>
+      <input type="number" id="vsPoint" inputmode="decimal" placeholder="例: 12" min="0" max="100">
+    </div>
+  </div>
+  <button class="btn" id="vsCalc">どっちが得か比較する</button>
+  <div class="result" id="vsResult"></div>
+</div>
+
+<div class="ad-slot"><!-- AdSense広告コード貼り付け位置(記事上) --></div>
+
+<article>
+<h2>割引計算の式</h2>
+<p>割引後の価格は次の式で計算します。</p>
+<p><strong>割引後の価格 = 元の価格 × (100 − 割引率) ÷ 100</strong></p>
+<p>たとえば7,980円の30%オフなら、7,980 × 0.7 = <strong>5,586円</strong>。暗算のコツは「30%オフ=7割になる」と置き換えることです。10%単位なら「1割=元値の1/10を引く」で概算できます。</p>
+
+<h2>割引とポイント還元、同じ○%でも価値が違う</h2>
+<p>「10%オフ」と「10%ポイント還元」は同じに見えますが、性質が異なります。</p>
+<ul>
+  <li><strong>10%オフ</strong>: 支払いが9,000円に減る。得した分はその場で確定。</li>
+  <li><strong>10%ポイント還元</strong>: 支払いは10,000円のまま。1,000円分のポイントは「次回その店で使えば」得になる。</li>
+</ul>
+<p>実質負担額は同じ9,000円ですが、ポイントには「その店でしか使えない」「有効期限がある」「使い忘れる」という目減りリスクがあります。一般に、<strong>同率なら割引の方が実用的に有利</strong>、ポイント還元が数%以上高いなら還元を選ぶ価値が出てくる、と考えるとよいでしょう。上の比較ツールでは実質負担額ベースで機械的に比較しています。</p>
+
+<h2>セールでよく見る表記の読み方</h2>
+<div class="table-scroll">
+<table>
+  <tr><th>表記</th><th>意味</th><th>10,000円の場合</th></tr>
+  <tr><td>30%オフ</td><td>元値の70%を支払う</td><td>7,000円</td></tr>
+  <tr><td>3割引</td><td>30%オフと同じ</td><td>7,000円</td></tr>
+  <tr><td>半額</td><td>50%オフ</td><td>5,000円</td></tr>
+  <tr><td>さらに20%オフ</td><td>割引後の価格からさらに20%引く(合計割引率は足し算にならない)</td><td>30%オフ後なら 7,000×0.8=5,600円(44%オフ相当)</td></tr>
+  <tr><td>2点目半額</td><td>2点の合計から25%オフ相当(同価格の場合)</td><td>2点で15,000円</td></tr>
+</table>
+</div>
+<p>特に「さらに○%オフ」は割引率の足し算(30+20=50%オフ)と誤解しやすいポイントです。実際には掛け算なので、少しだけ割引が浅くなります。</p>
+
+<h2>よくある質問</h2>
+<dl class="faq">
+  <dt>「税抜価格から30%オフ」の税込はいくら?</dt>
+  <dd>税抜価格×0.7×1.10(標準税率)です。食品なら×1.08。割引→課税の順で計算されます。</dd>
+  <dt>ポイント払いした分にもポイントは付く?</dt>
+  <dd>店やカードによります。ポイント利用分は還元対象外とする店が多いため、還元率を最大化したい場合はポイントは端数に充て、支払いはカードに寄せる方法があります。</dd>
+</dl>
+</article>
+
+<div class="ad-slot"><!-- AdSense広告コード貼り付け位置(記事下) --></div>
+
+<div class="notice">関連ツール: <a href="tanka.html">どっちがお得?単価比較</a> / <a href="warikan.html">割り勘計算</a></div>
+</div>
+
+<footer class="site-footer"><div class="inner">
+  <nav>
+    <a href="../index.html">ツール一覧</a>
+    <a href="../about.html">サイト概要</a>
+    <a href="../privacy.html">プライバシーポリシー</a>
+    <a href="../contact.html">お問い合わせ</a>
+  </nav>
+  <div>© 2026 くらしの電卓</div>
+</div></footer>
+
+<script src="../assets/tools.js"></script>
+<script>
+(function () {
+  const T = window.KurashiTools;
+  const $ = (id) => document.getElementById(id);
+
+  [10, 20, 30, 40, 50, 70].forEach((p) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'chip'; b.textContent = p + '%オフ';
+    b.addEventListener('click', () => { $('off').value = p; calc(); });
+    $('offChips').appendChild(b);
+  });
+
+  function calc() {
+    const r = T.waribiki($('price').value, $('off').value);
+    const el = $('result');
+    el.classList.add('show');
+    if (!r) {
+      el.innerHTML = '<span class="err">価格(0以上)と割引率(0〜100)を入力してください。</span>';
+      return;
+    }
+    el.innerHTML =
+      '<div>割引後 <span class="big">' + Math.round(r.discounted).toLocaleString('ja-JP') + '</span><span class="unit">円</span></div>' +
+      '<table><tr><th>値引き額</th><td>' + Math.round(r.saved).toLocaleString('ja-JP') + '円</td></tr></table>';
+  }
+
+  function vsCalc() {
+    const r = T.waribikiVsPoint($('vsPrice').value, $('vsOff').value, $('vsPoint').value);
+    const el = $('vsResult');
+    el.classList.add('show');
+    if (!r) {
+      el.innerHTML = '<span class="err">価格・割引率・還元率(0〜100)を入力してください。</span>';
+      return;
+    }
+    const label = r.winner === 'off' ? '割引(' + $('vsOff').value + '%オフ)の勝ち'
+      : r.winner === 'point' ? 'ポイント還元(' + $('vsPoint').value + '%)の勝ち'
+      : '実質負担は同額(その場で安くなる割引が実用的)';
+    el.innerHTML =
+      '<div><span class="win">' + label + '</span></div>' +
+      '<table>' +
+      '<tr><th>割引の支払額</th><td>' + Math.round(r.off.discounted).toLocaleString('ja-JP') + '円</td></tr>' +
+      '<tr><th>還元の支払額</th><td>' + Math.round(r.point.pay).toLocaleString('ja-JP') + '円(' + Math.round(r.point.point).toLocaleString('ja-JP') + 'pt付与)</td></tr>' +
+      '<tr><th>還元の実質負担</th><td>' + Math.round(r.point.effective).toLocaleString('ja-JP') + '円</td></tr>' +
+      (r.winner !== 'even' ? '<tr><th>実質差額</th><td>' + Math.round(r.diff).toLocaleString('ja-JP') + '円</td></tr>' : '') +
+      '</table>';
+  }
+
+  $('calc').addEventListener('click', calc);
+  $('vsCalc').addEventListener('click', vsCalc);
+  ['price', 'off'].forEach((id) => $(id).addEventListener('input', () => { if ($('result').classList.contains('show')) calc(); }));
+  ['vsPrice', 'vsOff', 'vsPoint'].forEach((id) => $(id).addEventListener('input', () => { if ($('vsResult').classList.contains('show')) vsCalc(); }));
+})();
+</script>
+</body>
+</html>
